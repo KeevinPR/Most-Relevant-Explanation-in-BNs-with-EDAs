@@ -1,0 +1,123 @@
+/* assets/style.css */
+
+/* Estilo para el cuerpo */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilo de los encabezados */
+h3 {
+    color: #00A2E1;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Estilos para el botón de subir archivo */
+button {
+    background-color: #00A2E1; /* Color azul cig */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #007bff; /* Azul más oscuro al pasar el ratón */
+}
+
+button:focus {
+    outline: none;
+}
+
+/* Centrar el botón en la página */
+.upload-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Estilos para el botón de ejecutar ("Run") */
+#run-button {
+    background-color: #00A2E1; /* Color cig */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#run-button:hover {
+    background-color: #007bff; /* Verde más oscuro al pasar el ratón */
+}
+
+#run-button:focus {
+    outline: none;
+}
+
+/* Centrar el botón de "Run" en la página */
+.run-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Estilo para las tablas */
+.dash-table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: white;
+}
+
+.dash-table th, .dash-table td {
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    text-align: left;
+}
+
+.dash-table th {
+    background-color: #00A2E1;
+    color: white;
+}
+
+.dash-table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Estilo del dropdown */
+.dcc-dropdown {
+    margin-bottom: 20px;
+}
+
+.dcc-dropdown select {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+/* Estilo para los resultados */
+#results-table {
+    margin-top: 20px;
+}
+
+#results-table th {
+    background-color: #00A2E1;
+    color: white;
+}
+
+#selected-row-table th {
+    background-color: #00A2E1;
+    color: white;
+}
+#predictor-table th{
+    background-color: #00A2E1;
+    color: white;
+}
