@@ -38,7 +38,7 @@ default_model = reader.get_model()
 app.layout = html.Div([
     html.H1("Bayesian Network Optimization", style={'textAlign': 'center'}),
     html.Hr(),
-    
+
     # File upload component
     html.Div([
         html.H3("Upload a .bif File or Use the Default Network", style={'textAlign': 'center'}),
@@ -55,7 +55,7 @@ app.layout = html.Div([
             style={'textAlign': 'center'}
         ),
     ], style={'textAlign': 'center'}),
-    
+
     html.Hr(),
     html.Div([
         html.H3("Select Evidence Variables", style={'textAlign': 'center'}),
@@ -80,18 +80,39 @@ app.layout = html.Div([
         )
     ], style={'marginBottom': '20px'}),
     html.Hr(),
+    # Algorithm parameters
     html.Div([
-        html.Button('Run Optimization', id='run-optimization-button', n_clicks=0, disabled=False)
-    ], style={'textAlign': 'center'}),
+        html.H3("Algorithm Parameters", style={'textAlign': 'center'}),
+        html.Div([
+            html.Label('Population Size:', style={'marginRight': '10px'}),
+            dcc.Input(id='pop-size-input', type='number', value=10, min=1, step=1, style={'width': '60px'}),
+            html.Label('Number of Generations:', style={'marginLeft': '20px', 'marginRight': '10px'}),
+            dcc.Input(id='num-gen-input', type='number', value=10, min=1, step=1, style={'width': '60px'}),
+        ], style={'textAlign': 'center', 'marginBottom': '10px'}),
+        html.Div([
+            html.Label('Max Steps:', style={'marginRight': '10px'}),
+            dcc.Input(id='max-steps-input', type='number', value=100, min=1, step=1, style={'width': '60px'}),
+            html.Label('Dead Iterations:', style={'marginLeft': '20px', 'marginRight': '10px'}),
+            dcc.Input(id='dead-iter-input', type='number', value=5, min=1, step=1, style={'width': '60px'}),
+        ], style={'textAlign': 'center'}),
+    ], style={'marginBottom': '20px'}),
+    html.Hr(),
+    html.Div([
+        dcc.Loading(
+            id='loading-run-button',
+            type='circle',
+            children=[
+                html.Div([
+                    html.Button('Run Optimization', id='run-optimization-button', n_clicks=0)
+                ], style={'textAlign': 'center'}),
+                dcc.Store(id='run-button-store')
+            ]
+        )
+    ], id='run-button-container', style={'textAlign': 'center'}),
     html.Br(),
-    dcc.Loading(
-        id="loading-results",
-        type="circle",
-        children=[
-            html.Div(id='progress-messages', style={'whiteSpace': 'pre-line', 'textAlign': 'center'}),
-            html.Div(id='optimization-results')
-        ]
-    ),
+    html.Div(id='progress-messages', style={'whiteSpace': 'pre-line', 'textAlign': 'center'}),
+    html.Div(id='optimization-results'),
+
     dcc.Store(id='stored-network'),
     dcc.Store(id='uploaded-bif-content'),
     dcc.Interval(
@@ -127,7 +148,7 @@ def update_evidence_values(evidence_vars, stored_network, uploaded_bif_content):
                 value=var_states[0],  # Default to the first state
                 style={'width': '50%', 'margin': '0 auto'}
             )
-        ], style={'margin-bottom': '10px'}))
+        ], style={'marginBottom': '10px'}))
     return children
 
 # Callback to update target variables options based on selected evidence variables
@@ -152,6 +173,7 @@ def get_model(stored_network, uploaded_bif_content):
         return default_model
     try:
         if stored_network['network_type'] == 'path':
+            reader = BIFReader('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif')
             model = reader.get_model()
             logger.info(f"Using default network: {stored_network['network_name']}")
             return model
@@ -197,17 +219,22 @@ def load_network(contents, filename, use_default_value):
 @app.callback(
     Output('optimization-results', 'children'),
     Output('progress-interval', 'disabled'),
-    Output('run-optimization-button', 'disabled'),
+    Output('run-button-store', 'data'),
     Input('run-optimization-button', 'n_clicks'),
     State('stored-network', 'data'),
     State('uploaded-bif-content', 'data'),
     State('evidence-vars-dropdown', 'value'),
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'value'),
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'id'),
-    State('target-vars-dropdown', 'value')
+    State('target-vars-dropdown', 'value'),
+    State('pop-size-input', 'value'),
+    State('num-gen-input', 'value'),
+    State('max-steps-input', 'value'),
+    State('dead-iter-input', 'value')
 )
 def run_optimization(n_clicks, stored_network, uploaded_bif_content,
-                     evidence_vars, evidence_values, evidence_ids, target_vars):
+                     evidence_vars, evidence_values, evidence_ids, target_vars,
+                     pop_size_input, num_gen_input, max_steps_input, dead_iter_input):
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
 
@@ -216,7 +243,7 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
 
     # Disable the Run button and enable the Interval component
     interval_disabled = False
-    run_button_disabled = True
+    run_button_hidden = True  # We'll use this to hide the button
 
     model = get_model(stored_network, uploaded_bif_content)
 
@@ -243,12 +270,12 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
     logger.info(f"Evidence: {evidence}")
     logger.info(f"Target Variables: {target_vars}")
 
-    # Run the algorithms
-    results = run_all_algorithms(model, evidence, target_vars)
+    # Run the algorithms with the provided parameters
+    results = run_all_algorithms(model, evidence, target_vars, pop_size_input, num_gen_input, max_steps_input, dead_iter_input)
 
     # Disable the Interval component after completion
     interval_disabled = True
-    run_button_disabled = False
+    run_button_hidden = False  # Show the button again
 
     # Format the results to display
     table_header = [
@@ -277,7 +304,18 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
         'border': '1px solid black'
     })
 
-    return table, interval_disabled, run_button_disabled
+    return table, interval_disabled, run_button_hidden
+
+# Callback to hide/show the run button based on the store
+@app.callback(
+    Output('run-optimization-button', 'style'),
+    Input('run-button-store', 'data')
+)
+def hide_run_button(run_button_hidden):
+    if run_button_hidden:
+        return {'display': 'none'}
+    else:
+        return {'display': 'inline-block'}
 
 @app.callback(
     Output('progress-messages', 'children'),
@@ -295,7 +333,7 @@ def update_progress(message):
     with progress_lock:
         progress_messages.append(message)
 
-def run_all_algorithms(model, evidence, target_vars):
+def run_all_algorithms(model, evidence, target_vars, pop_size, n_gen, max_steps, dead_iter):
     results = []
     logger.info("Starting run_all_algorithms")
 
@@ -303,12 +341,12 @@ def run_all_algorithms(model, evidence, target_vars):
     with progress_lock:
         progress_messages.clear()
 
-    # Adjusted parameters for faster execution
-    size_gen = 10
-    dead_iter = 5
-    pop_size = 10
-    n_gen = 10
-    max_steps = 100
+    # Adjusted parameters based on user input
+    size_gen = pop_size
+    dead_iter = dead_iter
+    pop_size = pop_size
+    n_gen = n_gen
+    max_steps = max_steps
 
     # UMDAcat_mre2
     try:
@@ -456,4 +494,4 @@ def run_all_algorithms(model, evidence, target_vars):
     return results
 
 if __name__ == '__main__':
-        app.run_server(debug=True, host='0.0.0.0', port=8052)
+    app.run_server(debug=True, host='0.0.0.0', port=8052)
