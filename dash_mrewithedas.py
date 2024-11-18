@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 # Initialize the Dash app
 app = dash.Dash(
     __name__,
-    requests_pathname_prefix='/Reasoning/MREWithEDAsDash/',
+    requests_pathname_prefix='/Evidence/MREWithEDAsDash/',
     suppress_callback_exceptions=True
 )
 
@@ -34,6 +34,19 @@ progress_messages = []
 # Load the default Bayesian Network model
 reader = BIFReader('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif')  # Ensure 'asia.bif' is in the same directory
 default_model = reader.get_model()
+
+# Algorithm requirements mapping
+algorithm_requirements = {
+    'UMDAcat_mre2': 2,
+    'DEA MRE': 2,
+    'EBNA MRE': 2,
+    'ES MRE': 2,
+    'GA MRE': 2,
+    'Hierarchical Beam Search': 1,
+    'NSGA2 MRE': 2,
+    'PSO MRE': 2,
+    'Tabu MRE': 2
+}
 
 app.layout = html.Div([
     html.H1("Bayesian Network Optimization", style={'textAlign': 'center'}),
@@ -73,12 +86,17 @@ app.layout = html.Div([
         html.H3("Select Target Variables", style={'textAlign': 'center'}),
         dcc.Dropdown(
             id='target-vars-dropdown',
-            options=[{'label': var, 'value': var} for var in default_model.nodes()],
+            options=[],
             multi=True,
             placeholder="Select target variables",
             style={'width': '50%', 'margin': '0 auto'}
         )
     ], style={'marginBottom': '20px'}),
+    html.Div(
+        'Note: The following algorithms require at least 2 target variables: '
+        'UMDAcat_mre2, DEA MRE, EBNA MRE, ES MRE, GA MRE, NSGA2 MRE, PSO MRE, Tabu MRE.',
+        style={'textAlign': 'center','fontSize': '12px', 'color': 'gray'}
+    ),
     html.Hr(),
     # Algorithm parameters
     html.Div([
@@ -140,15 +158,38 @@ def update_evidence_values(evidence_vars, stored_network, uploaded_bif_content):
     for var in evidence_vars:
         # Get the possible states for the variable
         var_states = model.get_cpds(var).state_names[var]
-        children.append(html.Div([
-            html.Label(f'Select value for {var}', style={'textAlign': 'center'}),
-            dcc.Dropdown(
-                id={'type': 'evidence-value-dropdown', 'index': var},
-                options=[{'label': state, 'value': state} for state in var_states],
-                value=var_states[0],  # Default to the first state
-                style={'width': '50%', 'margin': '0 auto'}
+        children.append(
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Label(
+                                f'Select value for {var}',
+                                style={
+                                    'width': '40%',
+                                    'textAlign': 'right',
+                                    'paddingRight': '10px'
+                                }
+                            ),
+                            dcc.Dropdown(
+                                id={'type': 'evidence-value-dropdown', 'index': var},
+                                options=[{'label': state, 'value': state} for state in var_states],
+                                value=var_states[0],  # Default to the first state
+                                style={'width': '60%'}
+                            )
+                        ],
+                        style={
+                            'display': 'flex',
+                            'alignItems': 'center',
+                            'justifyContent': 'center',
+                            'width': '100%',
+                            'margin': '0 auto'
+                        }
+                    )
+                ],
+                style={'marginBottom': '10px', 'width': '50%', 'margin': '0 auto'}
             )
-        ], style={'marginBottom': '10px'}))
+        )
     return children
 
 # Callback to update target variables options based on selected evidence variables
@@ -160,33 +201,50 @@ def update_evidence_values(evidence_vars, stored_network, uploaded_bif_content):
 )
 def update_target_options(evidence_vars, stored_network, uploaded_bif_content):
     model = get_model(stored_network, uploaded_bif_content)
+    all_vars = set(model.nodes())
     if not evidence_vars:
-        return [{'label': var, 'value': var} for var in model.nodes()]
-    else:
-        available_vars = [var for var in model.nodes() if var not in evidence_vars]
-        return [{'label': var, 'value': var} for var in available_vars]
+        evidence_vars = []
+    # Exclude evidence variables and variables with only one state
+    available_vars = [var for var in all_vars if var not in evidence_vars]
+    valid_target_vars = []
+    for var in available_vars:
+        var_states = model.get_cpds(var).state_names[var]
+        if len(var_states) >= 2:
+            valid_target_vars.append(var)
+    return [{'label': var, 'value': var} for var in valid_target_vars]
 
 # Helper function to get the model
+# Global variable to cache the model
+cached_model = None
+
 def get_model(stored_network, uploaded_bif_content):
+    global cached_model
+    if cached_model is not None:
+        return cached_model
     if stored_network is None:
         # Use default model
+        cached_model = default_model
         return default_model
     try:
         if stored_network['network_type'] == 'path':
             reader = BIFReader('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif')
             model = reader.get_model()
+            cached_model = model
             logger.info(f"Using default network: {stored_network['network_name']}")
             return model
         elif stored_network['network_type'] == 'string':
             reader = BIFReader(string=stored_network['content'])
             model = reader.get_model()
+            cached_model = model
             logger.info(f"Using uploaded network: {stored_network['network_name']}")
             return model
         else:
             logger.error("Invalid network type")
+            cached_model = default_model
             return default_model
     except Exception as e:
         logger.error(f"Error loading network: {e}")
+        cached_model = default_model
         return default_model
 
 @app.callback(
@@ -196,6 +254,8 @@ def get_model(stored_network, uploaded_bif_content):
     Input('use-default-network', 'value')
 )
 def load_network(contents, filename, use_default_value):
+    global cached_model
+    cached_model = None  # Reset cached model when network changes
     if 'default' in use_default_value or contents is None:
         # Use default network
         logger.info("Loaded default network: asia.bif")
@@ -239,7 +299,8 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
         raise PreventUpdate
 
     if stored_network is None:
-        return html.Div("Please upload a .bif file or select to use the default network.", style={'color': 'red', 'textAlign': 'center'}), True, False
+        return html.Div("Please upload a .bif file or select to use the default network.",
+                        style={'color': 'red', 'textAlign': 'center'}), True, False
 
     # Disable the Run button and enable the Interval component
     interval_disabled = False
@@ -248,12 +309,14 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
     model = get_model(stored_network, uploaded_bif_content)
 
     if not evidence_vars or not target_vars:
-        return html.Div("Please select both evidence and target variables.", style={'color': 'red', 'textAlign': 'center'}), True, False
+        return html.Div("Please select both evidence and target variables.",
+                        style={'color': 'red', 'textAlign': 'center'}), True, False
 
     # Ensure no variables are selected as both evidence and target
     overlap = set(evidence_vars) & set(target_vars)
     if overlap:
-        return html.Div(f"The following variables cannot be both evidence and target: {', '.join(overlap)}", style={'color': 'red', 'textAlign': 'center'}), True, False
+        return html.Div(f"The following variables cannot be both evidence and target: {', '.join(overlap)}",
+                        style={'color': 'red', 'textAlign': 'center'}), True, False
 
     # Build the evidence dictionary
     evidence = {}
@@ -265,13 +328,35 @@ def run_optimization(n_clicks, stored_network, uploaded_bif_content,
     for var in evidence_vars:
         var_states = model.get_cpds(var).state_names[var]
         if evidence[var] not in var_states:
-            return html.Div(f"Invalid value '{evidence[var]}' for variable '{var}'.", style={'color': 'red', 'textAlign': 'center'}), True, False
+            return html.Div(f"Invalid value '{evidence[var]}' for variable '{var}'.",
+                            style={'color': 'red', 'textAlign': 'center'}), True, False
+
+    # Check target variables for at least two possible states given the evidence
+    inference = VariableElimination(model)
+    valid_target_vars = []
+    epsilon = 1e-8  # Tolerance for floating-point precision
+    for var in target_vars:
+        try:
+            marginal = inference.query([var], evidence=evidence, show_progress=False)
+            probs = marginal.values.flatten()
+            max_prob = max(probs)
+            if max_prob >= 1 - epsilon:
+                update_progress(f"Variable {var} is deterministic given the evidence and will be excluded from target variables.")
+            else:
+                valid_target_vars.append(var)
+        except Exception as e:
+            update_progress(f"Failed to compute marginal for variable {var}: {e}")
+
+    if not valid_target_vars:
+        return html.Div("No valid target variables that are not deterministic given the evidence.",
+                        style={'color': 'red', 'textAlign': 'center'}), True, False
 
     logger.info(f"Evidence: {evidence}")
-    logger.info(f"Target Variables: {target_vars}")
+    logger.info(f"Target Variables: {valid_target_vars}")
 
     # Run the algorithms with the provided parameters
-    results = run_all_algorithms(model, evidence, target_vars, pop_size_input, num_gen_input, max_steps_input, dead_iter_input)
+    results = run_all_algorithms(model, evidence, valid_target_vars,
+                                 pop_size_input, num_gen_input, max_steps_input, dead_iter_input)
 
     # Disable the Interval component after completion
     interval_disabled = True
@@ -319,15 +404,18 @@ def hide_run_button(run_button_hidden):
 
 @app.callback(
     Output('progress-messages', 'children'),
-    Input('progress-interval', 'n_intervals')
+    Input('progress-interval', 'n_intervals'),
+    State('progress-messages', 'children')
 )
-def update_progress_messages(n):
+def update_progress_messages(n, existing_messages):
     with progress_lock:
         if progress_messages:
             messages = "\n".join(progress_messages)
+            # Clear messages after displaying
+            progress_messages.clear()
             return messages
         else:
-            return ''
+            return existing_messages
 
 def update_progress(message):
     with progress_lock:
@@ -336,6 +424,7 @@ def update_progress(message):
 def run_all_algorithms(model, evidence, target_vars, pop_size, n_gen, max_steps, dead_iter):
     results = []
     logger.info("Starting run_all_algorithms")
+    update_progress("Starting run_all_algorithms")
 
     # Clear previous progress messages
     with progress_lock:
@@ -347,148 +436,174 @@ def run_all_algorithms(model, evidence, target_vars, pop_size, n_gen, max_steps,
     pop_size = pop_size
     n_gen = n_gen
     max_steps = max_steps
+    
+    # List of algorithms to run
+    algorithms_to_run = []
+    for algorithm, min_targets in algorithm_requirements.items():
+        if len(target_vars) >= min_targets:
+            algorithms_to_run.append(algorithm)
+        else:
+            update_progress(f"Skipping {algorithm} due to insufficient target variables (requires at least {min_targets})")
 
-    # UMDAcat_mre2
-    try:
-        update_progress("Running UMDAcat_mre2")
-        s = time.time()
-        sol, gbf, _ = mre.UMDAcat_mre2(
-            model,
-            evidence,
-            target_vars,
-            size_gen=size_gen,
-            dead_iter=dead_iter,
-            verbose=False,
-            alpha=0.8,
-            best_init=True
-        )
-        e = time.time()
-        results.append({'Algorithm': 'UMDAcat_mre2', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("UMDAcat_mre2 completed successfully")
-    except Exception as ex:
-        update_progress(f"UMDAcat_mre2 failed: {ex}")
-        results.append({'Algorithm': 'UMDAcat_mre2', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+    # Proceed to run algorithms only if target_vars is not empty
+    if not target_vars:
+        update_progress("No target variables to optimize.")
+        return results
 
-    # Repeat similar blocks for other algorithms, updating progress messages accordingly
-    # DEA MRE
-    try:
-        update_progress("Running DEA MRE")
-        s = time.time()
-        sol, gbf = mre.dea_mre(model, evidence, target_vars, pop_size, max_steps)
-        e = time.time()
-        results.append({'Algorithm': 'DEA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("DEA MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"DEA MRE failed: {ex}")
-        results.append({'Algorithm': 'DEA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+    # Now, run only the algorithms in algorithms_to_run
+    for algorithm in algorithms_to_run:
+        if algorithm == 'UMDAcat_mre2':
+            # UMDAcat_mre2
+            try:
+                update_progress("Running UMDAcat_mre2")
+                s = time.time()
+                sol, gbf, _ = mre.UMDAcat_mre2(
+                    model,
+                    evidence,
+                    target_vars,
+                    size_gen=size_gen,
+                    dead_iter=dead_iter,
+                    verbose=False,
+                    alpha=0.8,
+                    best_init=True,
+                    more_targets=1  # Adjusted parameter
+                )
+                e = time.time()
+                results.append({'Algorithm': 'UMDAcat_mre2', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("UMDAcat_mre2 completed successfully")
+            except Exception as ex:
+                update_progress(f"UMDAcat_mre2 failed: {ex}")
+                results.append({'Algorithm': 'UMDAcat_mre2', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # EBNA MRE
-    try:
-        update_progress("Running EBNA MRE")
-        s = time.time()
-        sol, gbf, _ = mre.ebna_mre(
-            model,
-            evidence,
-            target_vars,
-            size_gen=size_gen,
-            dead_iter=dead_iter,
-            verbose=False,
-            alpha=0.8,
-            best_init=True
-        )
-        e = time.time()
-        results.append({'Algorithm': 'EBNA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("EBNA MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"EBNA MRE failed: {ex}")
-        results.append({'Algorithm': 'EBNA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'DEA MRE':
+            # DEA MRE
+            try:
+                update_progress("Running DEA MRE")
+                s = time.time()
+                sol, gbf = mre.dea_mre(model, evidence, target_vars, pop_size, max_steps, more_targets=1)  # Adjusted parameter
+                e = time.time()
+                results.append({'Algorithm': 'DEA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("DEA MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"DEA MRE failed: {ex}")
+                results.append({'Algorithm': 'DEA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # ES MRE
-    try:
-        update_progress("Running ES MRE")
-        s = time.time()
-        sol, gbf = mre.es_mre(model, evidence, target_vars, pop_size, max_steps)
-        e = time.time()
-        results.append({'Algorithm': 'ES MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("ES MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"ES MRE failed: {ex}")
-        results.append({'Algorithm': 'ES MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'EBNA MRE':
+            # EBNA MRE
+            try:
+                update_progress("Running EBNA MRE")
+                s = time.time()
+                sol, gbf, _ = mre.ebna_mre(
+                    model,
+                    evidence,
+                    target_vars,
+                    size_gen=size_gen,
+                    dead_iter=dead_iter,
+                    verbose=False,
+                    alpha=0.8,
+                    best_init=True,
+                    more_targets=1  # Adjusted parameter
+                )
+                e = time.time()
+                results.append({'Algorithm': 'EBNA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("EBNA MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"EBNA MRE failed: {ex}")
+                results.append({'Algorithm': 'EBNA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # GA MRE
-    try:
-        update_progress("Running GA MRE")
-        s = time.time()
-        sol, gbf = mre.ga_mre(model, evidence, target_vars, pop_size, max_steps)
-        e = time.time()
-        results.append({'Algorithm': 'GA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("GA MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"GA MRE failed: {ex}")
-        results.append({'Algorithm': 'GA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'ES MRE':
+            # ES MRE
+            try:
+                update_progress("Running ES MRE")
+                s = time.time()
+                sol, gbf = mre.es_mre(model, evidence, target_vars, pop_size, max_steps, more_targets=1)  # Adjusted parameter
+                e = time.time()
+                results.append({'Algorithm': 'ES MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("ES MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"ES MRE failed: {ex}")
+                results.append({'Algorithm': 'ES MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # Hierarchical Beam Search
-    try:
-        update_progress("Running Hierarchical Beam Search")
-        s = time.time()
-        sol, gbf = mre.hierarchical_beam_search(
-            model,
-            evidence,
-            target_vars,
-            width=5,        # Corrected parameter name
-            delta=1+1e-8,
-            max_steps=10,
-            k=2
-        )
-        e = time.time()
-        results.append({'Algorithm': 'Hierarchical Beam Search', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("Hierarchical Beam Search completed successfully")
-    except Exception as ex:
-        update_progress(f"Hierarchical Beam Search failed: {ex}")
-        results.append({'Algorithm': 'Hierarchical Beam Search', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'GA MRE':
+            # GA MRE
+            try:
+                update_progress("Running GA MRE")
+                s = time.time()
+                sol, gbf = mre.ga_mre(model, evidence, target_vars, pop_size, max_steps, more_targets=1)  # Adjusted parameter
+                e = time.time()
+                results.append({'Algorithm': 'GA MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("GA MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"GA MRE failed: {ex}")
+                results.append({'Algorithm': 'GA MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # NSGA2 MRE
-    try:
-        update_progress("Running NSGA2 MRE")
-        s = time.time()
-        sol, gbf = mre.nsga2_mre(model, evidence, target_vars, pop_size=pop_size, n_gen=n_gen, best_init=True, period=10)
-        e = time.time()
-        results.append({'Algorithm': 'NSGA2 MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("NSGA2 MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"NSGA2 MRE failed: {ex}")
-        results.append({'Algorithm': 'NSGA2 MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'Hierarchical Beam Search':
+            # Hierarchical Beam Search
+            try:
+                update_progress("Running Hierarchical Beam Search")
+                s = time.time()
+                sol, gbf = mre.hierarchical_beam_search(
+                    model,
+                    evidence,
+                    target_vars,
+                    5,         # beam_width or appropriate parameter
+                    1+1e-8,    # delta
+                    10,        # max_steps
+                    2,
+                    more_targets=1  # Adjusted parameter
+                )
+                e = time.time()
+                results.append({'Algorithm': 'Hierarchical Beam Search', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("Hierarchical Beam Search completed successfully")
+            except Exception as ex:
+                update_progress(f"Hierarchical Beam Search failed: {ex}")
+                results.append({'Algorithm': 'Hierarchical Beam Search', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # PSO MRE
-    try:
-        update_progress("Running PSO MRE")
-        s = time.time()
-        sol, gbf = mre.pso_mre(model, evidence, target_vars, pop_size, max_steps)
-        e = time.time()
-        results.append({'Algorithm': 'PSO MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("PSO MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"PSO MRE failed: {ex}")
-        results.append({'Algorithm': 'PSO MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'NSGA2 MRE':
+            # NSGA2 MRE
+            try:
+                update_progress("Running NSGA2 MRE")
+                s = time.time()
+                sol, gbf = mre.nsga2_mre(model, evidence, target_vars, pop_size=pop_size, n_gen=n_gen, best_init=True, period=10, more_targets=1)  # Adjusted parameter
+                e = time.time()
+                results.append({'Algorithm': 'NSGA2 MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("NSGA2 MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"NSGA2 MRE failed: {ex}")
+                results.append({'Algorithm': 'NSGA2 MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
-    # Tabu MRE
-    try:
-        update_progress("Running Tabu MRE")
-        s = time.time()
-        sol, gbf = mre.tabu_mre(
-            model,
-            evidence,
-            target_vars,
-            max_steps=max_steps,
-            tabu_size=30,
-            more_targets=1
-        )
-        e = time.time()
-        results.append({'Algorithm': 'Tabu MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
-        update_progress("Tabu MRE completed successfully")
-    except Exception as ex:
-        update_progress(f"Tabu MRE failed: {ex}")
-        results.append({'Algorithm': 'Tabu MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+        elif algorithm == 'PSO MRE':
+            # PSO MRE
+            try:
+                update_progress("Running PSO MRE")
+                s = time.time()
+                sol, gbf = mre.pso_mre(model, evidence, target_vars, pop_size, max_steps, more_targets=1)  # Adjusted parameter
+                e = time.time()
+                results.append({'Algorithm': 'PSO MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("PSO MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"PSO MRE failed: {ex}")
+                results.append({'Algorithm': 'PSO MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
+
+        elif algorithm == 'Tabu MRE':
+            # Tabu MRE
+            try:
+                update_progress("Running Tabu MRE")
+                s = time.time()
+                sol, gbf = mre.tabu_mre(
+                    model,
+                    evidence,
+                    target_vars,
+                    max_steps=max_steps,
+                    tabu_size=30,
+                    more_targets=1  # Adjusted parameter
+                )
+                e = time.time()
+                results.append({'Algorithm': 'Tabu MRE', 'Solution': sol, 'GBF': gbf, 'Time': e - s})
+                update_progress("Tabu MRE completed successfully")
+            except Exception as ex:
+                update_progress(f"Tabu MRE failed: {ex}")
+                results.append({'Algorithm': 'Tabu MRE', 'Solution': str(ex), 'GBF': 'Error', 'Time': 0})
 
     update_progress("Finished run_all_algorithms")
     return results
