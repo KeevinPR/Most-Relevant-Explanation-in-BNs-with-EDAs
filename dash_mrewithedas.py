@@ -130,7 +130,9 @@ app.layout = html.Div([
     html.Br(),
     html.Div(id='progress-messages', style={'whiteSpace': 'pre-line', 'textAlign': 'center'}),
     html.Div(id='optimization-results'),
-
+    # Hidden Div for clientside callback output
+    html.Div(id='scroll-helper', style={'display': 'none'}),
+    
     dcc.Store(id='stored-network'),
     dcc.Store(id='uploaded-bif-content'),
     dcc.Interval(
@@ -140,6 +142,28 @@ app.layout = html.Div([
         disabled=True
     )
 ])
+
+#For scrolling down animation
+app.clientside_callback(
+    """
+    function(results) {
+        if (results) {
+            setTimeout(function() {
+                var elem = document.getElementById('optimization-results');
+                console.log('Attempting to scroll after delay. Element:', elem);
+                if (elem) {
+                    elem.scrollIntoView({behavior: 'smooth'});
+                } else {
+                    console.log('Element not found after delay.');
+                }
+            }, 100); // Delay of 100 milliseconds
+        }
+        return '';
+    }
+    """,
+    Output('scroll-helper', 'children'),
+    [Input('optimization-results', 'children')]
+)
 
 from dash.dependencies import ALL
 
