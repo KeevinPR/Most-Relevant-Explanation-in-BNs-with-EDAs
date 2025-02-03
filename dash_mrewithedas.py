@@ -48,10 +48,14 @@ algorithm_requirements = {
     'Tabu MRE': 2
 }
 
-app.layout = html.Div([
+app.layout = dcc.Loading(
+    id="global-spinner",
+    overlay_style={"visibility":"visible", "filter": "blur(1px)"},
+    type="circle",        # You can choose "circle", "dot", "default", etc.
+    fullscreen=False,      # This ensures it covers the entire page
+    children=html.Div([
     html.H1("Bayesian Network Optimization", style={'textAlign': 'center'}),
-    html.Hr(),
-
+    
     # File upload component
     html.Div([
         html.H3("Upload a .bif File or Use the Default Network", style={'textAlign': 'center'}),
@@ -142,7 +146,7 @@ app.layout = html.Div([
         disabled=True
     )
 ])
-
+)
 #For scrolling down animation
 app.clientside_callback(
     """
