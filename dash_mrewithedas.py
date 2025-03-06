@@ -13,15 +13,15 @@ from dash.exceptions import PreventUpdate
 from pgmpy.readwrite import BIFReader
 from pgmpy.inference import VariableElimination
 
-# Import your custom module containing the optimization algorithms
-import mre  # Ensure this is accessible and correctly installed
+#
+import mre 
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Initialize the Dash app
+#Dash app
 app = dash.Dash(
     __name__,
     requests_pathname_prefix='/Evidence/MREWithEDAsDash/',
@@ -31,7 +31,7 @@ app = dash.Dash(
 progress_lock = threading.Lock()
 progress_messages = []
 
-# Load the default Bayesian Network model
+# Loading the default Bayesian Network model
 reader = BIFReader('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif')  # Ensure 'asia.bif' is in the same directory
 default_model = reader.get_model()
 
@@ -51,7 +51,7 @@ algorithm_requirements = {
 app.layout = dcc.Loading(
     id="global-spinner",
     overlay_style={"visibility":"visible", "filter": "blur(1px)"},
-    type="circle",        # You can choose "circle", "dot", "default", etc.
+    type="circle",        # "circle", "dot", "default"
     fullscreen=False,      # This ensures it covers the entire page
     children=html.Div([
     html.H1("Bayesian Network Optimization", style={'textAlign': 'center'}),
@@ -241,7 +241,6 @@ def update_target_options(evidence_vars, stored_network, uploaded_bif_content):
             valid_target_vars.append(var)
     return [{'label': var, 'value': var} for var in valid_target_vars]
 
-# Helper function to get the model
 # Global variable to cache the model
 cached_model = None
 
