@@ -121,3 +121,12 @@ button:focus {
     background-color: #00A2E1;
     color: white;
 }
+
+hr {
+    border: none;              /* Elimina el estilo de línea por defecto */
+    height: 2px;               /* Define el grosor */
+    background-color: #ccc;    /* Cambia el color de fondo */
+    margin: 1.5rem 0;          /* Añade espacio vertical */
+    opacity: 0.6;              /* Ajusta la transparencia si quieres */
+  }
+  
