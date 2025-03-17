@@ -27,6 +27,7 @@ app = dash.Dash(
     requests_pathname_prefix='/Evidence/MREWithEDAsDash/',
     suppress_callback_exceptions=True
 )
+server = app.server
 
 progress_lock = threading.Lock()
 progress_messages = []
