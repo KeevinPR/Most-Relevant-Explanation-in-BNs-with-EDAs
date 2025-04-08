@@ -22,6 +22,7 @@ button {
     background-color: #00A2E1; /* Color azul cig */
     color: white;
     border: none;
+    margin: 15px;
     padding: 10px 20px;
     font-size: 16px;
     border-radius: 5px;
@@ -121,6 +122,24 @@ button:focus {
     color: white;
 }
 
+
+
+#output-area {
+    overflow: visible !important;
+}
+.zoomable {
+    width: 80%; 
+    height: 80%; 
+    object-fit: contain;
+    position: relative;    
+    /*z-index: 9999;*/   
+    transition: transform 0.2s;
+}
+  
+.zoomable:hover {
+    transform: scale(1.5);
+}
+
 hr {
     border: none;              /* Elimina el estilo de línea por defecto */
     height: 2px;               /* Define el grosor */
@@ -128,4 +147,110 @@ hr {
     margin: 1.5rem 0;          /* Añade espacio vertical */
     opacity: 0.6;              /* Ajusta la transparencia si quieres */
   }
+
+
+
+  /* Container (card) for the upload section */
+.upload-card {
+    width: 25%; /* Adjust according to how small you want it (25% width) */
+    margin: 20px auto;
+    padding: 10px;
+    border-radius: 12px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+  }
   
+  .upload-card:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  
+  /* "Drag and drop" area */
+  .upload-dropzone {
+    width: 100%;
+    height: 40px;
+    line-height: 80px;
+    border-width: 1px;
+    border-style: dashed;
+    border-radius: 8px;
+    border-color: #ccc;
+    cursor: pointer;
+    background: rgba(250,250,250,0.7);
+    transition: background 0.2s ease-in-out;
+  }
+  
+  .upload-dropzone:hover {
+    background: rgba(250,250,250,1);
+  }
+  
+  /* Icon above the text */
+  .upload-icon {
+    margin-bottom: 5px;
+    opacity: 0.4;
+  }
+  
+  /* Main text inside the card */
+  .upload-text {
+    font-size: 14px;
+    color: #444;
+    font-weight: 400;
+    margin-bottom: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  
+  /* Section title (e.g., "Upload Dataset") */
+  .section-title {
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  /* Feedback message after file upload or error */
+  #output-data-upload {
+    text-align: center;
+    margin-top: 10px;
+    color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+h1 {
+    color: rgb(0, 162, 225);
+}
+  /* Generic card container */
+.card {
+    background-color: rgb(220, 241, 247, 0.1) !important;
+    border-color: rgb(0, 162, 225,0.3);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    padding: 10px 0px 20px 0px;
+    margin: 20px auto;
+    max-width: 700px; /* adjust as needed */
+    /* Subtle hover effect on the card */
+    transition: all 0.1s ease;
+}
+.card:hover {
+    margin-top: -2px; /* Simula "subir" 1-2px */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+  
+.popover {
+    z-index: 9999 !important;
+}
+.card-big {
+  background-color: rgb(220, 241, 247, 0.1) !important;
+  border: 1px solid rgba(0, 162, 225, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+  padding: 10px 0px 20px 0px;
+  margin: 20px auto;
+  max-width: 1000px; /* adjust as needed */
+  transition: all 0.1s ease;
+}
+  /* Subtle hover effect on the card */
+  .card-big:hover {
+    margin-top: -2px; /* Simula "subir" 1-2px */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
