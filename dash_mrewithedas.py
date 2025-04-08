@@ -136,14 +136,20 @@ app.layout = html.Div([
                         options=[{'label': 'Use default Asia network (asia.bif)', 'value': 'default'}],
                         value=[],  # <-- Not checked by default
                         style={'display': 'inline-block', 'marginTop': '10px'}
-                    )
+                    ),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-default-dataset",
+                        color="link",
+                        style={"display": "inline-block", "marginLeft": "8px"}
+                    ),
                 ], style={'textAlign': 'center'}),
             ]),
 
             html.Div(id='upload-status', style={'textAlign': 'center', 'color': 'green'}),
 
             # (B) Evidence and Targets
-            html.Div(className="card", style={'marginBottom': '20px'}, children=[
+            html.Div(className="card", children=[
                 html.H3("2. Select Evidence", style={'textAlign': 'center'}),
                 # This dropdown will be dynamically populated once a model is selected
                 dcc.Dropdown(
@@ -153,10 +159,10 @@ app.layout = html.Div([
                     placeholder="Select evidence variables",
                     style={'width': '50%', 'margin': '0 auto'}
                 ),
-                html.Div(id='evidence-values-container', style={'marginTop': '10px'})
+                html.Div(id='evidence-values-container')
             ]),
 
-            html.Div(className="card", style={'marginBottom': '20px'}, children=[
+            html.Div(className="card", children=[
                 html.H3("3. Select Target Variables", style={'textAlign': 'center'}),
                 dcc.Dropdown(
                     id='target-vars-dropdown',
@@ -172,7 +178,7 @@ app.layout = html.Div([
             ]),
 
             # (C) Algorithm parameters
-            html.Div(className="card", style={'marginBottom': '20px'}, children=[
+            html.Div(className="card", children=[
                 html.H3("4. Algorithm Parameters", style={'textAlign': 'center'}),
                 html.Div([
                     html.Label('Population Size:', style={'marginRight': '10px'}),
@@ -222,7 +228,47 @@ app.layout = html.Div([
                 disabled=True
             )
         ])
-    )
+    ),
+    dbc.Popover(
+        [
+            dbc.PopoverHeader(
+                [
+                    "Help",
+                    html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                ],
+                style={
+                    "backgroundColor": "#f8f9fa",  # Light gray background
+                    "fontWeight": "bold"
+                }
+            ),
+            dbc.PopoverBody(
+                [
+                    html.P(
+                        [
+                            "For details and content of the dataset, check out: ",
+                            html.A(
+                                "asia.bif",
+                                href="https://github.com/KeevinPR/Most-Relevant-Explanation-in-BNs-with-EDAs/blob/main/asia.bif",
+                                target="_blank",
+                                style={"textDecoration": "underline", "color": "#0d6efd"}
+                            ),
+                        ]
+                    ),
+                    html.Hr(),  # Horizontal rule for a modern divider
+                    html.P("Feel free to upload your own dataset at any time.")
+                ],
+                style={
+                    "backgroundColor": "#ffffff",
+                    "borderRadius": "0 0 0.25rem 0.25rem"
+                }
+            ),
+        ],
+        id="help-popover-default-dataset",
+        target="help-button-default-dataset",
+        placement="right",
+        is_open=False,
+        trigger="hover"
+    ),
 ])
 
 # Client-side callback for scrolling after results appear
