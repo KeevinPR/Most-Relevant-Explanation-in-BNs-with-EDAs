@@ -143,10 +143,11 @@ app.layout = html.Div([
                         color="link",
                         style={"display": "inline-block", "marginLeft": "8px"}
                     ),
+                html.Div(id='upload-status', style={'textAlign': 'center', 'color': 'green'}),
                 ], style={'textAlign': 'center'}),
             ]),
 
-            html.Div(id='upload-status', style={'textAlign': 'center', 'color': 'green'}),
+            
 
             # (B) Evidence and Targets
             html.Div(className="card", children=[
