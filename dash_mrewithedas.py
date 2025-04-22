@@ -520,35 +520,36 @@ def run_optimization(n_clicks,
     interval_disabled = True
     hide_run_button = False
 
-    # Format the results table
-    header = html.Thead(html.Tr([
-        html.Th("Algorithm"),
-        html.Th("Solution"),
-        html.Th("GBF"),
-        html.Th("Time (s)")
-    ]))
-    rows = []
-    for r in results:
-        sol_str = json.dumps(r['Solution']) if isinstance(r['Solution'], dict) else str(r['Solution'])
-        gbf_str = f"{r['GBF']:.4f}" if isinstance(r['GBF'], (float, int)) else str(r['GBF'])
-        t_str = f"{r['Time']:.2f}"
-        row = html.Tr([
-            html.Td(r['Algorithm']),
-            html.Td(sol_str),
-            html.Td(gbf_str),
-            html.Td(t_str)
-        ])
-        rows.append(row)
+   # 1) Build a DataFrame from your results list
+    df = pd.DataFrame(results)
 
-    body = html.Tbody(rows)
-    table = html.Table([header, body], style={
-        'width': '80%',
-        'margin': '0 auto',
-        'textAlign': 'center',
-        'border': '1px solid black'
-    })
+    # Rename the time column for clarity
+    if 'Time' in df.columns:
+        df = df.rename(columns={'Time': 'Time (s)'})
 
-    return table, interval_disabled, hide_run_button
+    # Serialize dicts and format numbers
+    df['Solution'] = df['Solution'].apply(lambda v: json.dumps(v) if isinstance(v, dict) else str(v))
+    df['GBF']      = df['GBF'].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else str(x))
+    df['Time (s)'] = df['Time (s)'].apply(lambda t: f"{t:.2f}" if isinstance(t, (int, float)) else str(t))
+
+    # 2) Create a responsive Bootstrap table
+    table = dbc.Table.from_dataframe(
+        df[['Algorithm', 'Solution', 'GBF', 'Time (s)']],
+        bordered=True,
+        striped=True,
+        hover=True,
+        responsive=True,
+        className="mt-2"
+    )
+
+    # 3) Wrap it in your existing “card-big” class
+    card = dbc.Card(
+            dbc.CardBody([
+                html.H4("Algorithm Results", className="card-title"),
+                table
+            ])
+        ) 
+    return card, interval_disabled, hide_run_button
 
 @app.callback(
     Output('run-optimization-button', 'style'),
