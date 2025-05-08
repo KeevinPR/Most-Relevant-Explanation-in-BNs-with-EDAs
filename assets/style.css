@@ -220,37 +220,43 @@ h1 {
     color: rgb(0, 162, 225);
 }
   /* Generic card container */
+/* Generic card container */
 .card {
-    background-color: rgb(220, 241, 247, 0.1) !important;
-    border-color: rgb(0, 162, 225,0.3);
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+    border: 1px solid rgba(0, 162, 225, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 162, 225, 0.05);
     padding: 10px 0px 20px 0px;
     margin: 20px auto;
-    max-width: 700px; /* adjust as needed */
-    /* Subtle hover effect on the card */
-    transition: all 0.1s ease;
+    max-width: 700px;
+    transition: all 0.25s ease;
 }
+
+.card-big {
+    background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+    border: 1px solid rgba(0, 162, 225, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 162, 225, 0.05);
+    padding: 10px 0px 20px 0px;
+    margin: 20px auto;
+    max-width: 1200px;
+    transition: all 0.25s ease;
+}
+
+/* Subtle hover effect on the card */
+.card-big:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 3px rgba(0, 162, 225, 0.08);
+    border-color: rgba(0, 162, 225, 0.25);
+}
+
+/* Subtle hover effect on the card */
 .card:hover {
-    margin-top: -2px; /* Simula "subir" 1-2px */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 3px rgba(0, 162, 225, 0.08);
+    border-color: rgba(0, 162, 225, 0.25);
 }
   
 .popover {
     z-index: 9999 !important;
 }
-.card-big {
-  background-color: rgb(220, 241, 247, 0.1) !important;
-  border: 1px solid rgba(0, 162, 225, 0.3);
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.06);
-  padding: 10px 0px 20px 0px;
-  margin: 20px auto;
-  max-width: 1000px; /* adjust as needed */
-  transition: all 0.1s ease;
-}
-  /* Subtle hover effect on the card */
-  .card-big:hover {
-    margin-top: -2px; /* Simula "subir" 1-2px */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  }
