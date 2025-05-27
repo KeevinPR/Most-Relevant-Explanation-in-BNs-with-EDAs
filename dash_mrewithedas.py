@@ -399,9 +399,9 @@ app.layout = html.Div([
                 ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     html.Label('Population Size:', style={'marginRight': '10px'}),
-                    dcc.Input(id='pop-size-input', type='number', value=20, min=1, step=1, style={'width': '60px'}),
+                    dcc.Input(id='pop-size-input', type='number', value=50, min=1, step=1, style={'width': '60px'}),
                     html.Label('Number of Generations:', style={'marginLeft': '20px', 'marginRight': '10px'}),
-                    dcc.Input(id='num-gen-input', type='number', value=30, min=1, step=1, style={'width': '60px'}),
+                    dcc.Input(id='num-gen-input', type='number', value=50, min=1, step=1, style={'width': '60px'}),
                 ], style={'textAlign': 'center', 'marginBottom': '10px'}),
                 html.Div([
                     html.Label('Max Steps:', style={'marginRight': '10px'}),
