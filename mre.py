@@ -1,23 +1,3 @@
-"""
-Implementation of different algorithms for resolving MRE in discrete Bayesian networks 
-
-Algorithms
------------
-- Brute Force: brute_force_mre_pruning()
-- UMDAcat: UMDAcat_mre()
-- UMDAcat improved: UMDAcat2_mre()
-- EBNA: ebna_mre()
-- NSGA2: nsga2_mre()
-- Tabu: tabu_mre()
-- Genetic Algorithm: ga_mre()
-- Evolution Strategy: es_mre()
-- Differential Evolution Algorithm: dea_mre()
-- Particle Swarm Optimization: pso_mre()
-- Hierarchical Beam Search: hierarchical_beam_search()
-
-"""
-
-
 import numpy as np
 import pandas as pd
 import warnings
@@ -305,7 +285,7 @@ def _preprocess_mre_eda(model,states):
     for a in means:
         a.append(0)
 
-    index = [all_states.index(e) for e in states if e in all_states]
+    index = [all_states.index(e) for e in all_states]
     v = list(model.states.values())
     v = [v[i] for i in index]
 
@@ -371,7 +351,23 @@ def ebna_mre(model,evidence,target=None,size_gen=100,max_iter=50,dead_iter=20,al
         init_data = []
         for n in range(0,size_gen):
             c = ['None']*n_variables
-            ind = random.sample(range(len(values)),random.randrange(2,n_variables//2))
+
+            # Robust num_to_select calculation
+            current_n_variables = n_variables
+            min_select = 2
+            max_select_from_rule = current_n_variables // 2
+            min_select = min(min_select, current_n_variables)
+            max_select_actual = max(min_select, max_select_from_rule)
+            max_select_actual = min(max_select_actual, current_n_variables)
+            
+            # Ensure range is valid for randrange
+            if min_select > max_select_actual:
+                num_to_select = min_select # Fallback to minimum
+            else:
+                num_to_select = random.randrange(min_select, max_select_actual + 1)
+
+            ind = random.sample(range(len(values)), num_to_select)
+            
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
             init_data.append(np.array(c))
@@ -458,8 +454,23 @@ def UMDAcat_mre(model,evidence,target=None,size_gen=20,max_iter=50,dead_iter=10,
         init_data = []
         for n in range(0,size_gen):
             c = ['None']*n_variables
-            ind = random.sample(range(len(values)),random.randrange(2,n_variables//2))
-            # ind = random.sample(range(len(values)),random.randrange(2,n_variables//2))
+
+            # Robust num_to_select calculation
+            current_n_variables = n_variables
+            min_select = 2
+            max_select_from_rule = current_n_variables // 2
+            min_select = min(min_select, current_n_variables)
+            max_select_actual = max(min_select, max_select_from_rule)
+            max_select_actual = min(max_select_actual, current_n_variables)
+            
+            # Ensure range is valid for randrange
+            if min_select > max_select_actual:
+                num_to_select = min_select # Fallback to minimum
+            else:
+                num_to_select = random.randrange(min_select, max_select_actual + 1)
+            
+            ind = random.sample(range(len(values)), num_to_select)
+            
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
             init_data.append(np.array(c))
@@ -545,8 +556,23 @@ def UMDAcat_mre2(model,evidence,target=None,size_gen=20,max_iter=50,dead_iter=10
         init_data = []
         for n in range(0,size_gen):
             c = ['None']*n_variables
-            ind = random.sample(range(len(values)),random.randrange(2,n_variables//2))
-            # ind = random.sample(range(len(values)),random.randrange(2,n_variables//2))
+
+            # Robust num_to_select calculation
+            current_n_variables = n_variables
+            min_select = 2
+            max_select_from_rule = current_n_variables // 2
+            min_select = min(min_select, current_n_variables)
+            max_select_actual = max(min_select, max_select_from_rule)
+            max_select_actual = min(max_select_actual, current_n_variables)
+            
+            # Ensure range is valid for randrange
+            if min_select > max_select_actual:
+                num_to_select = min_select # Fallback to minimum
+            else:
+                num_to_select = random.randrange(min_select, max_select_actual + 1)
+            
+            ind = random.sample(range(len(values)), num_to_select)
+            
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
             init_data.append(np.array(c))
@@ -774,7 +800,23 @@ def nsga2_mre(model,evidence,target,pop_size=50,n_gen=50,best_init=False,period=
         init_data = []
         for n in range(0,pop_size):
             c = ['None']*len(target)
-            ind = random.sample(range(len(target)),random.randrange(2,len(target)//2))
+            current_n_variables = len(target)
+
+            # Robust num_to_select calculation
+            min_select = 2
+            max_select_from_rule = current_n_variables // 2
+            min_select = min(min_select, current_n_variables)
+            max_select_actual = max(min_select, max_select_from_rule)
+            max_select_actual = min(max_select_actual, current_n_variables)
+            
+            # Ensure range is valid for randrange
+            if min_select > max_select_actual:
+                num_to_select = min_select # Fallback to minimum
+            else:
+                num_to_select = random.randrange(min_select, max_select_actual + 1)
+            
+            ind = random.sample(range(current_n_variables), num_to_select)
+
             for i in ind:
                 c[i] = model.states[target[i]][random.randrange(0,len(model.states[target[i]]))]
             init_data.append(np.array(cod.encode(c)))
@@ -942,7 +984,23 @@ class Tabu_mre(TabuSearch):
         _,values,_ = Tabu_mre._preprocess_mre_eda(model,target)
         self.values = values
         c = ['None']*len(target)
-        ind = random.sample(range(len(values)),random.randrange(2,len(target)//2))
+
+        current_n_variables = len(target)
+        # Robust num_to_select calculation for Tabu_mre __init__
+        min_select = 2
+        max_select_from_rule = current_n_variables // 2
+        min_select = min(min_select, current_n_variables)
+        max_select_actual = max(min_select, max_select_from_rule)
+        max_select_actual = min(max_select_actual, current_n_variables)
+        
+        # Ensure range is valid for randrange
+        if min_select > max_select_actual:
+            num_to_select = min_select # Fallback to minimum
+        else:
+            num_to_select = random.randrange(min_select, max_select_actual + 1)
+        
+        ind = random.sample(range(len(values)), num_to_select)
+
         for i in ind:
             c[i] = values[i][random.randrange(0,len(values[i])-1)]
         initial_state = c
@@ -1003,7 +1061,7 @@ class Tabu_mre(TabuSearch):
             
             _segmented_solutions[tuple(di)] = new_di
 
-            resu = self.calculate_gbf(self.model, di, self.evidence)
+            resu = self.calculate_gbf(self.model, new_di, self.evidence)
 
         return resu
     
@@ -1029,7 +1087,7 @@ class Tabu_mre(TabuSearch):
         for a in means:
             a.append(0)
 
-        index = [all_states.index(e) for e in states if e in all_states]
+        index = [all_states.index(e) for e in all_states]
         v = list(model.states.values())
         v = [v[i] for i in index]
 
@@ -1107,7 +1165,23 @@ def generate_initial_sample(random, args):
     target = args.get('target')
     cod = args.get('cod')
     c = ['None']*len(target)
-    ind = random.sample(range(len(target)),random.randrange(2,len(target)//2))
+
+    current_n_variables = len(target)
+    # Robust num_to_select calculation for generate_initial_sample
+    min_select = 2
+    max_select_from_rule = current_n_variables // 2
+    min_select = min(min_select, current_n_variables)
+    max_select_actual = max(min_select, max_select_from_rule)
+    max_select_actual = min(max_select_actual, current_n_variables)
+    
+    # Ensure range is valid for randrange
+    if min_select > max_select_actual:
+        num_to_select = min_select # Fallback to minimum
+    else:
+        num_to_select = random.randrange(min_select, max_select_actual + 1)
+    
+    ind = random.sample(range(current_n_variables), num_to_select)
+
     for i in ind:
         c[i] = model.states[target[i]][random.randrange(0,len(model.states[target[i]]))]
     c = cod.encode(c)
@@ -1717,4 +1791,3 @@ def hbeam_expan(model,target_variables,evidence,expState,locList,tagGBF,workList
                         locListGBF_sort[-1] = gbf
                         workList = locList_sort
                         workListGBF = locListGBF_sort
-
