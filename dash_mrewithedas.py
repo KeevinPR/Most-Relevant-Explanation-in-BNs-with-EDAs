@@ -19,6 +19,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Global variables
+_model = None
+
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -46,7 +49,19 @@ algorithm_requirements = {
     'Tabu MRE': 2
 }
 
+# Add notification store and container
 app.layout = html.Div([
+    dcc.Store(id='notification-store'),
+    html.Div(id='notification-container', style={
+        'position': 'fixed',
+        'bottom': '20px',
+        'right': '20px',
+        'zIndex': '1000',
+        'width': '300px',
+        'transition': 'all 0.3s ease-in-out',
+        'transform': 'translateY(100%)',
+        'opacity': '0'
+    }),
     dcc.Loading(
         id="global-spinner",
         overlay_style={"visibility": "visible", "filter": "blur(1px)"},
@@ -947,6 +962,254 @@ def toggle_parameters_popover(n, is_open):
     if n:
         return not is_open
     return is_open
+
+# Add notification callback
+@app.callback(
+    [Output('notification-container', 'children'),
+     Output('notification-container', 'style')],
+    Input('notification-store', 'data')
+)
+def show_notification(data):
+    if data is None:
+        return None, {
+            'position': 'fixed',
+            'bottom': '20px',
+            'right': '20px',
+            'zIndex': '1000',
+            'width': '300px',
+            'transition': 'all 0.3s ease-in-out',
+            'transform': 'translateY(100%)',
+            'opacity': '0'
+        }
+    
+    # Create toast with animation
+    toast = dbc.Toast(
+        data['message'],
+        header=data['header'],
+        icon=data['icon'],
+        is_open=True,
+        dismissable=True,
+        style={
+            'width': '100%',
+            'boxShadow': '0 4px 6px rgba(0, 0, 0, 0.1)',
+            'borderRadius': '8px',
+            'marginBottom': '10px'
+        }
+    )
+    
+    # Style to show notification with animation
+    container_style = {
+        'position': 'fixed',
+        'bottom': '20px',
+        'right': '20px',
+        'zIndex': '1000',
+        'width': '300px',
+        'transition': 'all 0.3s ease-in-out',
+        'transform': 'translateY(0)',
+        'opacity': '1'
+    }
+    
+    return toast, container_style
+
+def show_error(message, header="Error"):
+    """Show error notification"""
+    return {
+        'message': message,
+        'header': header,
+        'icon': 'danger'
+    }
+
+def show_success(message, header="Success"):
+    """Show success notification"""
+    return {
+        'message': message,
+        'header': header,
+        'icon': 'success'
+    }
+
+def show_warning(message, header="Warning"):
+    """Show warning notification"""
+    return {
+        'message': message,
+        'header': header,
+        'icon': 'warning'
+    }
+
+def show_info(message, header="Information"):
+    """Show info notification"""
+    return {
+        'message': message,
+        'header': header,
+        'icon': 'info'
+    }
+
+# Modify error handling callbacks
+@app.callback(
+    Output('notification-store', 'data'),
+    [Input('upload-bif', 'contents'),
+     Input('upload-bif', 'filename')],
+    prevent_initial_call=True
+)
+def handle_bif_upload(contents, filename):
+    global _model
+    if contents is None:
+        return show_error("Please select a BIF file to upload.")
+    
+    try:
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        
+        # Save the file temporarily
+        temp_path = f"/tmp/{filename}"
+        with open(temp_path, 'wb') as f:
+            f.write(decoded)
+        
+        # Load and validate the network
+        try:
+            model = BayesianNetwork.load(temp_path)
+            if not model.nodes():
+                return show_error("The BIF file does not contain any nodes.")
+            
+            # Store the model globally
+            _model = model
+            
+            # Update available variables
+            variables = list(model.nodes())
+            
+            return show_success(f"Successfully loaded network with {len(variables)} nodes.")
+            
+        except Exception as e:
+            return show_error(f"Error loading BIF file: {str(e)}")
+            
+    except Exception as e:
+        return show_error(f"Error processing file: {str(e)}")
+
+@app.callback(
+    [Output('evidence-dropdown', 'options'),
+     Output('target-dropdown', 'options'),
+     Output('notification-store', 'data', allow_duplicate=True)],
+    [Input('upload-bif', 'contents'),
+     Input('use-default-network', 'value')],
+    prevent_initial_call=True
+)
+def update_variable_dropdowns(contents, use_default):
+    global _model
+    if use_default:
+        try:
+            # Load default network
+            model = BayesianNetwork.load('default_network.bif')
+            variables = list(model.nodes())
+            
+            # Store the model globally
+            _model = model
+            
+            options = [{'label': var, 'value': var} for var in variables]
+            return options, options, show_success("Default network loaded successfully.")
+            
+        except Exception as e:
+            return [], [], show_error(f"Error loading default network: {str(e)}")
+    
+    if contents is None:
+        return [], [], show_warning("Please upload a BIF file or use the default network.")
+    
+    try:
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        
+        # Save the file temporarily
+        temp_path = f"/tmp/uploaded_network.bif"
+        with open(temp_path, 'wb') as f:
+            f.write(decoded)
+        
+        # Load the network
+        model = BayesianNetwork.load(temp_path)
+        variables = list(model.nodes())
+        
+        # Store the model globally
+        _model = model
+        
+        options = [{'label': var, 'value': var} for var in variables]
+        return options, options, show_success(f"Network loaded with {len(variables)} variables.")
+        
+    except Exception as e:
+        return [], [], show_error(f"Error processing network: {str(e)}")
+
+@app.callback(
+    [Output('results-container', 'children'),
+     Output('notification-store', 'data', allow_duplicate=True)],
+    [Input('run-button', 'n_clicks')],
+    [State('evidence-dropdown', 'value'),
+     State('target-dropdown', 'value'),
+     State('algorithm-dropdown', 'value'),
+     State('population-size', 'value'),
+     State('generations', 'value'),
+     State('max-steps', 'value'),
+     State('dead-iterations', 'value')],
+    prevent_initial_call=True
+)
+def run_mre(n_clicks, evidence, targets, algorithm, pop_size, generations, max_steps, dead_iterations):
+    global _model
+    if n_clicks is None:
+        return None, None
+    
+    if not evidence or not targets:
+        return None, show_error("Please select both evidence and target variables.")
+    
+    if not algorithm:
+        return None, show_error("Please select an algorithm.")
+    
+    if not all([pop_size, generations, max_steps, dead_iterations]):
+        return None, show_error("Please fill in all algorithm parameters.")
+    
+    try:
+        # Validate evidence and targets
+        if not _model:
+            return None, show_error("No network loaded. Please upload a BIF file first.")
+        
+        # Check if evidence and targets are valid nodes
+        valid_nodes = set(_model.nodes())
+        invalid_evidence = set(evidence) - valid_nodes
+        invalid_targets = set(targets) - valid_nodes
+        
+        if invalid_evidence:
+            return None, show_error(f"Invalid evidence variables: {', '.join(invalid_evidence)}")
+        if invalid_targets:
+            return None, show_error(f"Invalid target variables: {', '.join(invalid_targets)}")
+        
+        # Check for overlap between evidence and targets
+        overlap = set(evidence) & set(targets)
+        if overlap:
+            return None, show_error(f"Variables cannot be both evidence and targets: {', '.join(overlap)}")
+        
+        # Run the selected algorithm
+        if algorithm == 'umdacat':
+            result = umdacat(evidence, targets, pop_size, generations, max_steps, dead_iterations)
+        elif algorithm == 'ebna':
+            result = ebna(evidence, targets, pop_size, generations, max_steps, dead_iterations)
+        elif algorithm == 'mimic':
+            result = mimic(evidence, targets, pop_size, generations, max_steps, dead_iterations)
+        elif algorithm == 'umda':
+            result = umda(evidence, targets, pop_size, generations, max_steps, dead_iterations)
+        else:
+            return None, show_error(f"Unknown algorithm: {algorithm}")
+        
+        # Format results
+        results_div = html.Div([
+            html.H4("Results", className="mb-4"),
+            html.Div([
+                html.H5("Optimal States"),
+                html.Pre(json.dumps(result['optimal_states'], indent=2))
+            ], className="mb-4"),
+            html.Div([
+                html.H5("Statistics"),
+                html.Pre(json.dumps(result['stats'], indent=2))
+            ])
+        ])
+        
+        return results_div, show_success("MRE computation completed successfully.")
+        
+    except Exception as e:
+        return None, show_error(f"Error during MRE computation: {str(e)}")
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8052)
