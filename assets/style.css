@@ -260,3 +260,8 @@ h1 {
 .popover {
     z-index: 9999 !important;
 }
+
+/* Ensure dropdown menus are displayed above other cards */
+.Select-menu, .Select-menu-outer {
+    z-index: 2000 !important;
+}
