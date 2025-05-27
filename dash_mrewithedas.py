@@ -112,7 +112,15 @@ app.layout = html.Div([
 
             # (A) BIF Upload or use default network
             html.Div(className="card", children=[
-                html.H3("1. Load Bayesian Network (.bif)", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("1. Load Bayesian Network (.bif)", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-bif-upload",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     html.Div([
                         html.Img(
@@ -147,11 +155,67 @@ app.layout = html.Div([
                 ], style={'textAlign': 'center'}),
             ]),
 
-            
+            # Add BIF Upload Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Bayesian Network Requirements",
+                            html.I(className="fa fa-check-circle ms-2", style={"color": "#198754"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.Ul([
+                                html.Li(
+                                    children=[
+                                        html.Strong("Format: "),
+                                        "BIF (Bayesian Interchange Format) file"
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Structure: "),
+                                        "Must be a valid Bayesian network with nodes and conditional probability tables"
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Nodes: "),
+                                        "Each node must have defined states and probabilities"
+                                    ]
+                                ),
+                                html.Li(
+                                    children=[
+                                        html.Strong("Default: "),
+                                        "You can use the default Asia network for testing"
+                                    ]
+                                ),
+                            ]),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "300px"}
+                    ),
+                ],
+                id="help-popover-bif-upload",
+                target="help-button-bif-upload",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
 
             # (B) Evidence and Targets
             html.Div(className="card", children=[
-                html.H3("2. Select Evidence", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("2. Select Evidence", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-evidence",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 # This dropdown will be dynamically populated once a model is selected
                 dcc.Dropdown(
                     id='evidence-vars-dropdown',
@@ -163,8 +227,44 @@ app.layout = html.Div([
                 html.Div(id='evidence-values-container')
             ]),
 
+            # Add Evidence Selection Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Evidence Selection",
+                            html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.P("Evidence variables are the known states in your Bayesian network."),
+                            html.P("Select one or more variables that you want to use as evidence."),
+                            html.P("For each selected variable, you'll need to specify its state."),
+                            html.P("These values will be used to compute the Most Relevant Explanation."),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "300px"}
+                    ),
+                ],
+                id="help-popover-evidence",
+                target="help-button-evidence",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
+
             html.Div(className="card", children=[
-                html.H3("3. Select Target Variables", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("3. Select Target Variables", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-targets",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 dcc.Dropdown(
                     id='target-vars-dropdown',
                     options=[],
@@ -178,9 +278,49 @@ app.layout = html.Div([
                 ),
             ]),
 
+            # Add Target Variables Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Target Variables",
+                            html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.P("Target variables are the nodes you want to explain in your Bayesian network."),
+                            html.P("Select one or more variables that you want to find the Most Relevant Explanation for."),
+                            html.P("Important notes:"),
+                            html.Ul([
+                                html.Li("Variables used as evidence cannot be selected as targets"),
+                                html.Li("Some algorithms require at least 2 target variables"),
+                                html.Li("The more targets you select, the more complex the computation becomes")
+                            ]),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "300px"}
+                    ),
+                ],
+                id="help-popover-targets",
+                target="help-button-targets",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
+
             # (C) Algorithm parameters
             html.Div(className="card", children=[
-                html.H3("4. Algorithm Parameters", style={'textAlign': 'center'}),
+                html.Div([
+                    html.H3("4. Algorithm Parameters", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-parameters",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
                 html.Div([
                     html.Label('Population Size:', style={'marginRight': '10px'}),
                     dcc.Input(id='pop-size-input', type='number', value=10, min=1, step=1, style={'width': '60px'}),
@@ -194,6 +334,50 @@ app.layout = html.Div([
                     dcc.Input(id='dead-iter-input', type='number', value=5, min=1, step=1, style={'width': '60px'}),
                 ], style={'textAlign': 'center'}),
             ]),
+
+            # Add Algorithm Parameters Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Algorithm Parameters",
+                            html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.P("These parameters control the behavior of the optimization algorithms:"),
+                            html.Ul([
+                                html.Li([
+                                    html.Strong("Population Size: "),
+                                    "Number of solutions evaluated in each generation"
+                                ]),
+                                html.Li([
+                                    html.Strong("Number of Generations: "),
+                                    "Maximum number of iterations for the algorithm"
+                                ]),
+                                html.Li([
+                                    html.Strong("Max Steps: "),
+                                    "Maximum number of steps for algorithms like Tabu Search"
+                                ]),
+                                html.Li([
+                                    html.Strong("Dead Iterations: "),
+                                    "Number of iterations without improvement before stopping"
+                                ])
+                            ]),
+                            html.P("Higher values may improve results but increase computation time."),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "300px"}
+                    ),
+                ],
+                id="help-popover-parameters",
+                target="help-button-parameters",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
 
             # (D) "Run" button + progress messages
             html.Div([
@@ -543,7 +727,7 @@ def run_optimization(n_clicks,
         className="mt-2"
     )
 
-    # 3) Wrap it in your existing “card-big” class
+    # 3) Wrap it in your existing "card-big" class
     card = dbc.Card(
             dbc.CardBody([
                 html.H4("Algorithm Results", className="card-title"),
@@ -719,6 +903,50 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
 
     update_progress("Finished run_all_algorithms")
     return results
+
+# Add callback for BIF upload popover
+@app.callback(
+    Output("help-popover-bif-upload", "is_open"),
+    Input("help-button-bif-upload", "n_clicks"),
+    State("help-popover-bif-upload", "is_open")
+)
+def toggle_bif_upload_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+# Add callback for evidence popover
+@app.callback(
+    Output("help-popover-evidence", "is_open"),
+    Input("help-button-evidence", "n_clicks"),
+    State("help-popover-evidence", "is_open")
+)
+def toggle_evidence_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+# Add callback for target variables popover
+@app.callback(
+    Output("help-popover-targets", "is_open"),
+    Input("help-button-targets", "n_clicks"),
+    State("help-popover-targets", "is_open")
+)
+def toggle_targets_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+# Add callback for algorithm parameters popover
+@app.callback(
+    Output("help-popover-parameters", "is_open"),
+    Input("help-button-parameters", "n_clicks"),
+    State("help-popover-parameters", "is_open")
+)
+def toggle_parameters_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8052)
