@@ -36,17 +36,18 @@ progress_messages = []
 # IMPORTANT: We do NOT load asia.bif by default. Instead, we store None here:
 default_model = None
 
-# We define the minimum number of target variables required by each algorithm:
+# All algorithms can work with 1 or more target variables
+# The requirement of 2+ variables was a performance optimization, not a technical limitation
 algorithm_requirements = {
-    'UMDAcat_mre2': 2,
-    'DEA MRE': 2,
-    'EBNA MRE': 2,
-    'ES MRE': 2,
-    'GA MRE': 2,
+    'UMDAcat_mre2': 1,
+    'DEA MRE': 1,
+    'EBNA MRE': 1,
+    'ES MRE': 1,
+    'GA MRE': 1,
     'Hierarchical Beam Search': 1,
-    'NSGA2 MRE': 2,
-    'PSO MRE': 2,
-    'Tabu MRE': 2
+    'NSGA2 MRE': 1,
+    'PSO MRE': 1,
+    'Tabu MRE': 1
 }
 
 # Add notification store and container
@@ -294,10 +295,16 @@ app.layout = html.Div([
                     placeholder="Select target variables",
                     style={'width': '50%', 'margin': '0 auto'}
                 ),
-                html.Div(
-                    'Note: Some algorithms need at least 2 target variables (UMDAcat_mre2, GA MRE, etc.)',
-                    style={'textAlign': 'center', 'fontSize': '12px', 'color': 'gray', 'marginTop': '10px'}
-                ),
+                html.Div([
+                    html.Span("Available algorithms: ", style={'fontWeight': 'bold'}),
+                    html.Span("UMDAcat_mre2, EBNA MRE, DEA MRE, ES MRE, GA MRE, NSGA2 MRE, PSO MRE, Tabu MRE, Hierarchical Beam Search"),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-algorithms",
+                        color="link",
+                        style={"display": "inline-block", "padding": "0", "marginLeft": "8px"}
+                    ),
+                ], style={'textAlign': 'center', 'fontSize': '12px', 'color': 'gray', 'marginTop': '10px'}),
             ]),
 
             # Add Target Variables Popover
@@ -317,7 +324,7 @@ app.layout = html.Div([
                             html.P("Important notes:"),
                             html.Ul([
                                 html.Li("Variables used as evidence cannot be selected as targets"),
-                                html.Li("Some algorithms require at least 2 target variables"),
+                                html.Li("All algorithms can work with 1 or more target variables"),
                                 html.Li("The more targets you select, the more complex the computation becomes")
                             ]),
                         ],
@@ -326,6 +333,53 @@ app.layout = html.Div([
                 ],
                 id="help-popover-targets",
                 target="help-button-targets",
+                placement="right",
+                is_open=False,
+                trigger="hover",
+                style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
+            ),
+
+            # Add Algorithms Popover
+            dbc.Popover(
+                [
+                    dbc.PopoverHeader(
+                        [
+                            "Available Optimization Algorithms",
+                            html.I(className="fa fa-info-circle ms-2", style={"color": "#0d6efd"})
+                        ],
+                        style={"backgroundColor": "#f8f9fa", "fontWeight": "bold"}
+                    ),
+                    dbc.PopoverBody(
+                        [
+                            html.H6("Estimation of Distribution Algorithms (EDAs):", style={"fontWeight": "bold", "marginBottom": "8px"}),
+                            html.Ul([
+                                html.Li([html.Strong("UMDAcat_mre2: "), "Univariate Marginal Distribution Algorithm for Categorical variables (improved)"]),
+                                html.Li([html.Strong("EBNA MRE: "), "Estimation of Bayesian Network Algorithm"]),
+                            ], style={"marginBottom": "10px"}),
+                            
+                            html.H6("Evolutionary Algorithms:", style={"fontWeight": "bold", "marginBottom": "8px"}),
+                            html.Ul([
+                                html.Li([html.Strong("GA MRE: "), "Genetic Algorithm"]),
+                                html.Li([html.Strong("ES MRE: "), "Evolution Strategy"]),
+                                html.Li([html.Strong("DEA MRE: "), "Differential Evolution Algorithm"]),
+                                html.Li([html.Strong("NSGA2 MRE: "), "Non-dominated Sorting Genetic Algorithm II"]),
+                            ], style={"marginBottom": "10px"}),
+                            
+                            html.H6("Other Metaheuristics:", style={"fontWeight": "bold", "marginBottom": "8px"}),
+                            html.Ul([
+                                html.Li([html.Strong("PSO MRE: "), "Particle Swarm Optimization"]),
+                                html.Li([html.Strong("Tabu MRE: "), "Tabu Search"]),
+                                html.Li([html.Strong("Hierarchical Beam Search: "), "Tree-based search algorithm"]),
+                            ]),
+                            
+                            html.Hr(),
+                            html.P("All algorithms can work with 1 or more target variables.", style={"fontSize": "12px", "color": "#666", "marginTop": "10px", "marginBottom": "0px"}),
+                        ],
+                        style={"backgroundColor": "#ffffff", "borderRadius": "0 0 0.25rem 0.25rem", "maxWidth": "400px"}
+                    ),
+                ],
+                id="help-popover-algorithms",
+                target="help-button-algorithms",
                 placement="right",
                 is_open=False,
                 trigger="hover",
@@ -955,6 +1009,17 @@ def toggle_evidence_popover(n, is_open):
     State("help-popover-targets", "is_open")
 )
 def toggle_targets_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+# Add callback for algorithms popover
+@app.callback(
+    Output("help-popover-algorithms", "is_open"),
+    Input("help-button-algorithms", "n_clicks"),
+    State("help-popover-algorithms", "is_open")
+)
+def toggle_algorithms_popover(n, is_open):
     if n:
         return not is_open
     return is_open
