@@ -1084,55 +1084,8 @@ def handle_bif_upload(contents, filename):
     except Exception as e:
         return show_error(f"Error processing file: {str(e)}")
 
-@app.callback(
-    [Output('evidence-vars-dropdown', 'options'),
-     Output('target-vars-dropdown', 'options'),
-     Output('notification-store', 'data', allow_duplicate=True)],
-    [Input('upload-bif', 'contents'),
-     Input('use-default-network', 'value')],
-    prevent_initial_call=True
-)
-def update_variable_dropdowns(contents, use_default):
-    global _model
-    if use_default:
-        try:
-            # Load default network
-            model = BayesianNetwork.load('default_network.bif')
-            variables = list(model.nodes())
-            
-            # Store the model globally
-            _model = model
-            
-            options = [{'label': var, 'value': var} for var in variables]
-            return options, options, show_success("Default network loaded successfully.")
-            
-        except Exception as e:
-            return [], [], show_error(f"Error loading default network: {str(e)}")
-    
-    if contents is None:
-        return [], [], show_warning("Please upload a BIF file or use the default network.")
-    
-    try:
-        content_type, content_string = contents.split(',')
-        decoded = base64.b64decode(content_string)
-        
-        # Save the file temporarily
-        temp_path = f"/tmp/uploaded_network.bif"
-        with open(temp_path, 'wb') as f:
-            f.write(decoded)
-        
-        # Load the network
-        model = BayesianNetwork.load(temp_path)
-        variables = list(model.nodes())
-        
-        # Store the model globally
-        _model = model
-        
-        options = [{'label': var, 'value': var} for var in variables]
-        return options, options, show_success(f"Network loaded with {len(variables)} variables.")
-        
-    except Exception as e:
-        return [], [], show_error(f"Error processing network: {str(e)}")
+
+
 
 @app.callback(
     [Output('results-container', 'children'),
