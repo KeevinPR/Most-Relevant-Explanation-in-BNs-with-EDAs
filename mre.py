@@ -366,7 +366,7 @@ def ebna_mre(model,evidence,target=None,size_gen=100,max_iter=50,dead_iter=20,al
             else:
                 num_to_select = random.randrange(min_select, max_select_actual + 1)
 
-            ind = random.sample(range(len(values)), num_to_select)
+            ind = random.sample(range(n_variables), num_to_select)
             
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
@@ -469,7 +469,7 @@ def UMDAcat_mre(model,evidence,target=None,size_gen=20,max_iter=50,dead_iter=10,
             else:
                 num_to_select = random.randrange(min_select, max_select_actual + 1)
             
-            ind = random.sample(range(len(values)), num_to_select)
+            ind = random.sample(range(n_variables), num_to_select)
             
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
@@ -571,7 +571,7 @@ def UMDAcat_mre2(model,evidence,target=None,size_gen=20,max_iter=50,dead_iter=10
             else:
                 num_to_select = random.randrange(min_select, max_select_actual + 1)
             
-            ind = random.sample(range(len(values)), num_to_select)
+            ind = random.sample(range(n_variables), num_to_select)
             
             for i in ind:
                 c[i] = values[i][random.randrange(0,len(values[i])-1)]
@@ -999,7 +999,7 @@ class Tabu_mre(TabuSearch):
         else:
             num_to_select = random.randrange(min_select, max_select_actual + 1)
         
-        ind = random.sample(range(len(values)), num_to_select)
+        ind = random.sample(range(current_n_variables), num_to_select)
 
         for i in ind:
             c[i] = values[i][random.randrange(0,len(values[i])-1)]
