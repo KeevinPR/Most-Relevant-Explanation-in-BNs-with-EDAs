@@ -237,7 +237,7 @@ app.layout = html.Div([
                     options=[],
                     multi=True,
                     placeholder="Select evidence variables",
-                    style={'width': '50%', 'margin': '0 auto', 'zIndex': 1000}
+                    style={'width': '50%', 'margin': '0 auto'}
                 ),
                 html.Div(id='evidence-values-container')
             ]),
@@ -285,7 +285,7 @@ app.layout = html.Div([
                     options=[],
                     multi=True,
                     placeholder="Select target variables",
-                    style={'width': '50%', 'margin': '0 auto', 'zIndex': 1000}
+                    style={'width': '50%', 'margin': '0 auto'}
                 ),
                 html.Div(
                     'Note: Some algorithms need at least 2 target variables (UMDAcat_mre2, GA MRE, etc.)',
@@ -618,7 +618,7 @@ def update_evidence_values(evidence_vars, stored_network):
                                 id={'type': 'evidence-value-dropdown', 'index': var},
                                 options=[{'label': s, 'value': s} for s in states],
                                 value=states[0] if states else None,
-                                style={'width': '60%', 'zIndex': 1000}
+                                style={'width': '60%'}
                             )
                         ],
                         style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}

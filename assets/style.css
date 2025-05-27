@@ -219,8 +219,27 @@ hr {
 h1 {
     color: rgb(0, 162, 225);
 }
-  /* Generic card container */
-/* Generic card container */
+
+/* todas las tarjetas tendrán coordenadas-z independientes */
+.card {
+    position: relative;          /* crea contexto pero no cambia nada visual */
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+
+/* Subtle hover effect on the card */
+.card:hover {
+    transform: translateY(-3px); /* o el desplazamiento que quieras */
+    z-index: 20;                 /* más alto que el 0 de las demás */
+    box-shadow: 0 6px 12px rgba(0,0,0,.08);
+}
+
+/* y el menú del dropdown todavía más alto, para que nunca quede tapado */
+.Select-menu-outer{
+    position: absolute !important;
+    z-index: 30 !important;
+}
+
+/*card container */
 .card {
     background: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
     border: 1px solid rgba(0, 162, 225, 0.15);
@@ -229,7 +248,6 @@ h1 {
     padding: 10px 0px 20px 0px;
     margin: 20px auto;
     max-width: 700px;
-    transition: all 0.25s ease;
 }
 
 .card-big {
@@ -243,12 +261,8 @@ h1 {
     transition: all 0.25s ease;
 }
 
-/* Subtle hover effect on the card */
-.card-big:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 3px rgba(0, 162, 225, 0.08);
-    border-color: rgba(0, 162, 225, 0.25);
-}
+
+
 
 /* Subtle hover effect on the card */
 .card:hover {
@@ -261,7 +275,3 @@ h1 {
     z-index: 9999 !important;
 }
 
-/* Ensure dropdown menus are displayed above other cards */
-.Select-menu, .Select-menu-outer {
-    z-index: 2000 !important;
-}
