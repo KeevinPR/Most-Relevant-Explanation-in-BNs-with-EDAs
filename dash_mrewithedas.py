@@ -237,7 +237,7 @@ app.layout = html.Div([
                     options=[],
                     multi=True,
                     placeholder="Select evidence variables",
-                    style={'width': '50%', 'margin': '0 auto'}
+                    style={'width': '50%', 'margin': '0 auto', 'zIndex': 1000}
                 ),
                 html.Div(id='evidence-values-container')
             ]),
@@ -285,7 +285,7 @@ app.layout = html.Div([
                     options=[],
                     multi=True,
                     placeholder="Select target variables",
-                    style={'width': '50%', 'margin': '0 auto'}
+                    style={'width': '50%', 'margin': '0 auto', 'zIndex': 1000}
                 ),
                 html.Div(
                     'Note: Some algorithms need at least 2 target variables (UMDAcat_mre2, GA MRE, etc.)',
@@ -618,7 +618,7 @@ def update_evidence_values(evidence_vars, stored_network):
                                 id={'type': 'evidence-value-dropdown', 'index': var},
                                 options=[{'label': s, 'value': s} for s in states],
                                 value=states[0] if states else None,
-                                style={'width': '60%'}
+                                style={'width': '60%', 'zIndex': 1000}
                             )
                         ],
                         style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}
@@ -1085,8 +1085,8 @@ def handle_bif_upload(contents, filename):
         return show_error(f"Error processing file: {str(e)}")
 
 @app.callback(
-    [Output('evidence-dropdown', 'options'),
-     Output('target-dropdown', 'options'),
+    [Output('evidence-vars-dropdown', 'options'),
+     Output('target-vars-dropdown', 'options'),
      Output('notification-store', 'data', allow_duplicate=True)],
     [Input('upload-bif', 'contents'),
      Input('use-default-network', 'value')],
@@ -1138,8 +1138,8 @@ def update_variable_dropdowns(contents, use_default):
     [Output('results-container', 'children'),
      Output('notification-store', 'data', allow_duplicate=True)],
     [Input('run-button', 'n_clicks')],
-    [State('evidence-dropdown', 'value'),
-     State('target-dropdown', 'value'),
+    [State('evidence-vars-dropdown', 'value'),
+     State('target-vars-dropdown', 'value'),
      State('algorithm-dropdown', 'value'),
      State('population-size', 'value'),
      State('generations', 'value'),
