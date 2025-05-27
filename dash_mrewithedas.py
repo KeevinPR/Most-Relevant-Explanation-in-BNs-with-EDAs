@@ -64,9 +64,16 @@ app.layout = html.Div([
     }),
     dcc.Loading(
         id="global-spinner",
-        overlay_style={"visibility": "visible", "filter": "blur(1px)"},
-        type="circle",
+        type="default",
         fullscreen=False,
+        color="#00A2E1",
+        style={
+            "position": "fixed",
+            "top": "50%",
+            "left": "50%",
+            "transform": "translate(-50%, -50%)",
+            "zIndex": "999999"
+        },
         children=html.Div([
             html.H1("Bayesian Network Optimization", style={'textAlign': 'center'}),
 
