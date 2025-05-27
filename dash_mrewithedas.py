@@ -874,7 +874,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
                     verbose=False,
                     alpha=0.8,
                     best_init=True,
-                    more_targets=1
+                    more_targets=0
                 )
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
@@ -883,7 +883,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
             elif alg == 'DEA MRE':
                 update_progress("Running DEA MRE")
                 start = time.time()
-                sol, gbf = mre.dea_mre(model, evidence, targets, pop_size, max_steps, more_targets=1)
+                sol, gbf = mre.dea_mre(model, evidence, targets, pop_size, max_steps, more_targets=0)
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
                 update_progress("DEA MRE completed successfully.")
@@ -900,7 +900,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
                     verbose=False,
                     alpha=0.8,
                     best_init=True,
-                    more_targets=1
+                    more_targets=0
                 )
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
@@ -909,7 +909,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
             elif alg == 'ES MRE':
                 update_progress("Running ES MRE")
                 start = time.time()
-                sol, gbf = mre.es_mre(model, evidence, targets, pop_size, max_steps, more_targets=1)
+                sol, gbf = mre.es_mre(model, evidence, targets, pop_size, max_steps, more_targets=0)
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
                 update_progress("ES MRE completed successfully.")
@@ -917,7 +917,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
             elif alg == 'GA MRE':
                 update_progress("Running GA MRE")
                 start = time.time()
-                sol, gbf = mre.ga_mre(model, evidence, targets, pop_size, max_steps, more_targets=1)
+                sol, gbf = mre.ga_mre(model, evidence, targets, pop_size, max_steps, more_targets=0)
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
                 update_progress("GA MRE completed successfully.")
@@ -933,7 +933,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
                     1 + 1e-8,    # delta
                     10,          # max_steps
                     2,
-                    more_targets=1
+                    more_targets=0
                 )
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
@@ -945,7 +945,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
                 sol, gbf = mre.nsga2_mre(
                     model, evidence, targets,
                     pop_size=pop_size, n_gen=n_gen,
-                    best_init=True, period=10, more_targets=1
+                    best_init=True, period=10, more_targets=0
                 )
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
@@ -954,7 +954,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
             elif alg == 'PSO MRE':
                 update_progress("Running PSO MRE")
                 start = time.time()
-                sol, gbf = mre.pso_mre(model, evidence, targets, pop_size, max_steps, more_targets=1)
+                sol, gbf = mre.pso_mre(model, evidence, targets, pop_size, max_steps, more_targets=0)
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
                 update_progress("PSO MRE completed successfully.")
@@ -966,7 +966,7 @@ def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dea
                     model, evidence, targets,
                     max_steps=max_steps,
                     tabu_size=30,
-                    more_targets=1
+                    more_targets=0
                 )
                 elapsed = time.time() - start
                 results.append({'Algorithm': alg, 'Solution': sol, 'GBF': gbf, 'Time': elapsed})
