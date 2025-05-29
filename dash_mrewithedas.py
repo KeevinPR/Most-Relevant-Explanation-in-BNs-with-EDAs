@@ -513,21 +513,15 @@ app.layout = html.Div([
 
             # (D) "Run" button + progress messages
             html.Div([
-                dcc.Loading(
-                    id='loading-run-button',
-                    type='circle',
-                    children=[
-                        html.Div([
-                            html.Button(
-                                'Run Optimization',
-                                id='run-optimization-button',
-                                n_clicks=0,
-                                style={'margin': '10px'}
-                            )
-                        ], style={'textAlign': 'center'}),
-                        dcc.Store(id='run-button-store')
-                    ]
-                )
+                html.Div([
+                    html.Button(
+                        'Run Optimization',
+                        id='run-optimization-button',
+                        n_clicks=0,
+                        style={'margin': '10px'}
+                    )
+                ], style={'textAlign': 'center'}),
+                dcc.Store(id='run-button-store')
             ], id='run-button-container', style={'textAlign': 'center'}),
 
             html.Br(),
@@ -616,38 +610,23 @@ cached_model = None
 @app.callback(
     Output('stored-network', 'data'),
     Output('upload-status', 'children'),
+    Output('use-default-network', 'value'),
     Input('upload-bif', 'contents'),
     State('upload-bif', 'filename'),
     Input('use-default-network', 'value')
 )
 def load_network(contents, filename, use_default_value):
     """
-    1) If user checks 'default', load asia.bif from disk.
-    2) If user uploads a .bif, parse that.
+    1) If user uploads a .bif, parse that and uncheck default checkbox.
+    2) If user checks 'default' (and no file uploaded), load asia.bif from disk.
     3) Otherwise, no network is used (None).
     """
     global cached_model
     cached_model = None
-    if 'default' in use_default_value:
-        try:
-            with open('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif', 'r') as f:
-                default_data = f.read()
-            msg = "Using default network: asia.bif"
-            logger.info(msg)
-            return (
-                {
-                    'network_name': 'asia.bif',
-                    'network_type': 'string',
-                    'content': default_data
-                },
-                msg
-            )
-        except Exception as e:
-            logger.error(f"Error reading default network: {e}")
-            return None, f"Error reading default network: {e}"
-
+    
+    # PRIORITY 1: Handle file upload first
     if contents is not None:
-        # The user uploaded a file
+        # The user uploaded a file - this takes priority
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
@@ -663,14 +642,35 @@ def load_network(contents, filename, use_default_value):
                     'network_type': 'string',
                     'content': bif_data
                 },
-                msg
+                msg,
+                []  # Uncheck the default checkbox when file is uploaded
             )
         except Exception as e:
             logger.error(f"Error loading network from {filename}: {e}")
-            return None, f"Error loading {filename}: {e}"
+            return None, f"Error loading {filename}: {e}", use_default_value
+    
+    # PRIORITY 2: Handle default checkbox (only if no file was uploaded)
+    if 'default' in use_default_value:
+        try:
+            with open('/var/www/html/CIGModels/backend/cigmodelsdjango/cigmodelsdjangoapp/MREWithEDAs/asia.bif', 'r') as f:
+                default_data = f.read()
+            msg = "Using default network: asia.bif"
+            logger.info(msg)
+            return (
+                {
+                    'network_name': 'asia.bif',
+                    'network_type': 'string',
+                    'content': default_data
+                },
+                msg,
+                use_default_value  # Keep checkbox as is
+            )
+        except Exception as e:
+            logger.error(f"Error reading default network: {e}")
+            return None, f"Error reading default network: {e}", use_default_value
 
     # If neither default nor file upload
-    return None, "No network selected. Upload a file or check the default option."
+    return None, "No network selected. Upload a file or check the default option.", use_default_value
 
 def get_model(stored_network):
     """
