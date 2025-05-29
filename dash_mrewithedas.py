@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Global variables
-_model = None
-
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -1114,127 +1112,6 @@ def show_info(message, header="Information"):
         'header': header,
         'icon': 'info'
     }
-
-# Modify error handling callbacks
-@app.callback(
-    Output('notification-store', 'data'),
-    [Input('upload-bif', 'contents'),
-     Input('upload-bif', 'filename')],
-    prevent_initial_call=True
-)
-def handle_bif_upload(contents, filename):
-    global _model
-    if contents is None:
-        return show_error("Please select a BIF file to upload.")
-    
-    try:
-        content_type, content_string = contents.split(',')
-        decoded = base64.b64decode(content_string)
-        
-        # Save the file temporarily
-        temp_path = f"/tmp/{filename}"
-        with open(temp_path, 'wb') as f:
-            f.write(decoded)
-        
-        # Load and validate the network
-        try:
-            model = BayesianNetwork.load(temp_path)
-            if not model.nodes():
-                return show_error("The BIF file does not contain any nodes.")
-            
-            # Store the model globally
-            _model = model
-            
-            # Update available variables
-            variables = list(model.nodes())
-            
-            return show_success(f"Successfully loaded network with {len(variables)} nodes.")
-            
-        except Exception as e:
-            return show_error(f"Error loading BIF file: {str(e)}")
-            
-    except Exception as e:
-        return show_error(f"Error processing file: {str(e)}")
-
-
-
-
-@app.callback(
-    [Output('results-container', 'children'),
-     Output('notification-store', 'data', allow_duplicate=True)],
-    [Input('run-button', 'n_clicks')],
-    [State('evidence-vars-dropdown', 'value'),
-     State('target-vars-dropdown', 'value'),
-     State('algorithm-dropdown', 'value'),
-     State('population-size', 'value'),
-     State('generations', 'value'),
-     State('max-steps', 'value'),
-     State('dead-iterations', 'value')],
-    prevent_initial_call=True
-)
-def run_mre(n_clicks, evidence, targets, algorithm, pop_size, generations, max_steps, dead_iterations):
-    global _model
-    if n_clicks is None:
-        return None, None
-    
-    if not evidence or not targets:
-        return None, show_error("Please select both evidence and target variables.")
-    
-    if not algorithm:
-        return None, show_error("Please select an algorithm.")
-    
-    if not all([pop_size, generations, max_steps, dead_iterations]):
-        return None, show_error("Please fill in all algorithm parameters.")
-    
-    try:
-        # Validate evidence and targets
-        if not _model:
-            return None, show_error("No network loaded. Please upload a BIF file first.")
-        
-        # Check if evidence and targets are valid nodes
-        valid_nodes = set(_model.nodes())
-        invalid_evidence = set(evidence) - valid_nodes
-        invalid_targets = set(targets) - valid_nodes
-        
-        if invalid_evidence:
-            return None, show_error(f"Invalid evidence variables: {', '.join(invalid_evidence)}")
-        if invalid_targets:
-            return None, show_error(f"Invalid target variables: {', '.join(invalid_targets)}")
-        
-        # Check for overlap between evidence and targets
-        overlap = set(evidence) & set(targets)
-        if overlap:
-            return None, show_error(f"Variables cannot be both evidence and targets: {', '.join(overlap)}")
-        
-        # Run the selected algorithm
-        if algorithm == 'umdacat':
-            result = umdacat(evidence, targets, pop_size, generations, max_steps, dead_iterations)
-        elif algorithm == 'ebna':
-            result = ebna(evidence, targets, pop_size, generations, max_steps, dead_iterations)
-        elif algorithm == 'mimic':
-            result = mimic(evidence, targets, pop_size, generations, max_steps, dead_iterations)
-        elif algorithm == 'umda':
-            result = umda(evidence, targets, pop_size, generations, max_steps, dead_iterations)
-        else:
-            return None, show_error(f"Unknown algorithm: {algorithm}")
-        
-        # Format results
-        results_div = html.Div([
-            html.H4("Results", className="mb-4"),
-            html.Div([
-                html.H5("Optimal States"),
-                html.Pre(json.dumps(result['optimal_states'], indent=2))
-            ], className="mb-4"),
-            html.Div([
-                html.H5("Statistics"),
-                html.Pre(json.dumps(result['stats'], indent=2))
-            ])
-        ])
-        
-        return results_div, show_success("MRE computation completed successfully.")
-        
-    except Exception as e:
-        return None, show_error(f"Error during MRE computation: {str(e)}")
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8052)
