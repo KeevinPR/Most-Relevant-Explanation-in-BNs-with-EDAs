@@ -237,14 +237,39 @@ app.layout = html.Div([
                         style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
                     ),
                 ], style={"textAlign": "center", "position": "relative"}),
-                # This dropdown will be dynamically populated once a model is selected
-                dcc.Dropdown(
-                    id='evidence-vars-dropdown',
-                    options=[],
-                    multi=True,
-                    placeholder="Select evidence variables",
-                    style={'width': '50%', 'margin': '0 auto'}
+                
+                # Buttons for bulk selection
+                html.Div([
+                    dbc.Button(
+                        "Select All",
+                        id="select-all-evidence",
+                        color="outline-primary",
+                        size="sm",
+                        style={'marginRight': '10px'}
+                    ),
+                    dbc.Button(
+                        "Clear All",
+                        id="clear-evidence",
+                        color="outline-secondary",
+                        size="sm"
+                    )
+                ], style={'textAlign': 'center', 'marginBottom': '15px'}),
+                
+                # Checkbox container for evidence variables
+                html.Div(
+                    id='evidence-checkbox-container',
+                    style={
+                        'maxHeight': '200px',
+                        'overflowY': 'auto',
+                        'border': '1px solid #ddd',
+                        'borderRadius': '5px',
+                        'padding': '10px',
+                        'margin': '0 auto',
+                        'width': '80%',
+                        'backgroundColor': '#f8f9fa'
+                    }
                 ),
+                
                 html.Div(id='evidence-values-container')
             ]),
 
@@ -286,13 +311,46 @@ app.layout = html.Div([
                         style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
                     ),
                 ], style={"textAlign": "center", "position": "relative"}),
-                dcc.Dropdown(
-                    id='target-vars-dropdown',
-                    options=[],
-                    multi=True,
-                    placeholder="Select target variables",
-                    style={'width': '50%', 'margin': '0 auto'}
+                
+                # Buttons for bulk selection
+                html.Div([
+                    dbc.Button(
+                        "Select All",
+                        id="select-all-targets",
+                        color="outline-primary",
+                        size="sm",
+                        style={'marginRight': '10px'}
+                    ),
+                    dbc.Button(
+                        "Clear All",
+                        id="clear-targets",
+                        color="outline-secondary",
+                        size="sm"
+                    )
+                ], style={'textAlign': 'center', 'marginBottom': '15px'}),
+                
+                # Checkbox container for target variables
+                html.Div(
+                    id='target-checkbox-container',
+                    style={
+                        'maxHeight': '200px',
+                        'overflowY': 'auto',
+                        'border': '1px solid #ddd',
+                        'borderRadius': '5px',
+                        'padding': '10px',
+                        'margin': '0 auto',
+                        'width': '80%',
+                        'backgroundColor': '#f8f9fa'
+                    }
                 ),
+                
+                # Info message about intelligent selection
+                html.Div([
+                    html.I(className="fa fa-info-circle", style={'marginRight': '5px', 'color': '#6c757d'}),
+                    html.Span("Target variables automatically exclude evidence variables. Previous selections are preserved when possible.", 
+                             style={'fontSize': '11px', 'color': '#6c757d'})
+                ], style={'textAlign': 'center', 'marginTop': '8px'}),
+                
                 html.Div([
                     html.Span("Available algorithms: ", style={'fontWeight': 'bold'}),
                     html.Span("UMDAcat_mre2, EBNA MRE, DEA MRE, ES MRE, GA MRE, NSGA2 MRE, PSO MRE, Tabu MRE, Hierarchical Beam Search"),
@@ -480,6 +538,8 @@ app.layout = html.Div([
             html.Div(id='scroll-helper', style={'display': 'none'}),
             dcc.Store(id='stored-network'),
             dcc.Store(id='uploaded-bif-content'),
+            dcc.Store(id='previous-evidence-selection', data=[]),
+            dcc.Store(id='previous-target-selection', data=[]),
             dcc.Interval(
                 id='progress-interval',
                 interval=1000,
@@ -638,22 +698,53 @@ def get_model(stored_network):
 
 # Populate the evidence dropdown only if a model is available
 @app.callback(
-    Output('evidence-vars-dropdown', 'options'),
+    Output('evidence-checkbox-container', 'children'),
     Input('stored-network', 'data')
 )
 def update_evidence_variables(stored_network):
     m = get_model(stored_network)
     if not m:
-        return []
-    return [{'label': var, 'value': var} for var in m.nodes()]
+        return html.Div("No network loaded", style={'textAlign': 'center', 'color': '#666'})
+    
+    variables = list(m.nodes())
+    if not variables:
+        return html.Div("No variables found", style={'textAlign': 'center', 'color': '#666'})
+    
+    # Create checkboxes in a grid layout
+    checkboxes = []
+    for i, var in enumerate(variables):
+        checkboxes.append(
+            html.Div([
+                dcc.Checklist(
+                    id={'type': 'evidence-checkbox', 'index': var},
+                    options=[{'label': f' {var}', 'value': var}],
+                    value=[],
+                    style={'margin': '0'}
+                )
+            ], style={'display': 'inline-block', 'width': '50%', 'marginBottom': '5px'})
+        )
+    
+    return html.Div(checkboxes, style={'columnCount': '2', 'columnGap': '20px'})
 
 # Build the dynamic evidence-value dropdowns
 @app.callback(
     Output('evidence-values-container', 'children'),
-    Input('evidence-vars-dropdown', 'value'),
+    Input({'type': 'evidence-checkbox', 'index': ALL}, 'value'),
     State('stored-network', 'data')
 )
-def update_evidence_values(evidence_vars, stored_network):
+def update_evidence_values(checkbox_values, stored_network):
+    # Get selected evidence variables from checkboxes
+    ctx = dash.callback_context
+    if not ctx.inputs:
+        return []
+    
+    # Extract selected variables
+    evidence_vars = []
+    for input_info in ctx.inputs_list[0]:
+        if input_info['value']:  # If checkbox is checked
+            var_name = input_info['id']['index']
+            evidence_vars.append(var_name)
+    
     if not evidence_vars:
         return []
 
@@ -690,17 +781,29 @@ def update_evidence_values(evidence_vars, stored_network):
 
 # Populate target variables, excluding those in evidence, ignoring single-state
 @app.callback(
-    Output('target-vars-dropdown', 'options'),
-    Input('evidence-vars-dropdown', 'value'),
-    State('stored-network', 'data')
+    Output('target-checkbox-container', 'children'),
+    Output('previous-evidence-selection', 'data'),
+    Input({'type': 'evidence-checkbox', 'index': ALL}, 'value'),
+    State('stored-network', 'data'),
+    State('previous-evidence-selection', 'data'),
+    State('previous-target-selection', 'data')
 )
-def update_target_options(evidence_vars, stored_network):
+def update_target_options(checkbox_values, stored_network, prev_evidence, prev_targets):
     m = get_model(stored_network)
     if m is None:
-        return []
+        return html.Div("No network loaded", style={'textAlign': 'center', 'color': '#666'}), []
+    
+    # Get currently selected evidence variables from checkboxes
+    current_evidence = []
+    ctx = dash.callback_context
+    if ctx.inputs_list and ctx.inputs_list[0]:
+        for input_info in ctx.inputs_list[0]:
+            if input_info['value']:  # If checkbox is checked
+                var_name = input_info['id']['index']
+                current_evidence.append(var_name)
+    
     all_vars = set(m.nodes())
-    evidence_vars = evidence_vars or []
-    available = [v for v in all_vars if v not in evidence_vars]
+    available = [v for v in all_vars if v not in current_evidence]
 
     valid_targets = []
     for v in available:
@@ -708,7 +811,46 @@ def update_target_options(evidence_vars, stored_network):
         if len(states) > 1:
             valid_targets.append(v)
 
-    return [{'label': x, 'value': x} for x in valid_targets]
+    if not valid_targets:
+        return html.Div("No target variables available", style={'textAlign': 'center', 'color': '#666'}), current_evidence
+    
+    # Calculate which targets should remain selected:
+    # 1. Variables that were targets before and are still available
+    # 2. Variables that were removed from evidence and were targets before
+    newly_available = set(prev_evidence) - set(current_evidence)  # Variables removed from evidence
+    keep_selected = (set(prev_targets) & set(valid_targets)) | (newly_available & set(prev_targets))
+    
+    # Create checkboxes in a grid layout
+    checkboxes = []
+    for var in valid_targets:
+        # Pre-select if it should remain selected
+        initial_value = [var] if var in keep_selected else []
+        
+        checkboxes.append(
+            html.Div([
+                dcc.Checklist(
+                    id={'type': 'target-checkbox', 'index': var},
+                    options=[{'label': f' {var}', 'value': var}],
+                    value=initial_value,
+                    style={'margin': '0'}
+                )
+            ], style={'display': 'inline-block', 'width': '50%', 'marginBottom': '5px'})
+        )
+    
+    return html.Div(checkboxes, style={'columnCount': '2', 'columnGap': '20px'}), current_evidence
+
+# Callback to track target selections for intelligent management
+@app.callback(
+    Output('previous-target-selection', 'data'),
+    Input({'type': 'target-checkbox', 'index': ALL}, 'value')
+)
+def track_target_selections(target_checkbox_values):
+    """Track which targets are currently selected"""
+    selected_targets = []
+    for checkbox_value in target_checkbox_values or []:
+        if checkbox_value:  # If checkbox is checked
+            selected_targets.extend(checkbox_value)
+    return selected_targets
 
 # Callback to run optimization
 @app.callback(
@@ -719,7 +861,7 @@ def update_target_options(evidence_vars, stored_network):
     State('stored-network', 'data'),
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'value'),
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'id'),
-    State('target-vars-dropdown', 'value'),
+    State({'type': 'target-checkbox', 'index': ALL}, 'value'),
     State('pop-size-input', 'value'),
     State('num-gen-input', 'value'),
     State('max-steps-input', 'value'),
@@ -728,7 +870,7 @@ def update_target_options(evidence_vars, stored_network):
 def run_optimization(n_clicks,
                      stored_network,
                      evidence_values, evidence_ids,
-                     target_vars,
+                     target_checkbox_values,
                      pop_size, n_gen, max_steps, dead_iter):
     if not n_clicks:
         raise PreventUpdate
@@ -746,6 +888,12 @@ def run_optimization(n_clicks,
     evidence_dict = {}
     for ident, val in zip(evidence_ids, evidence_values):
         evidence_dict[ident['index']] = val
+
+    # Get selected target variables from checkboxes
+    target_vars = []
+    for checkbox_value in target_checkbox_values:
+        if checkbox_value:  # If checkbox is checked, it contains the variable name
+            target_vars.extend(checkbox_value)
 
     # Check for overlap between evidence and target
     overlap = set(evidence_dict.keys()) & set(target_vars or [])
@@ -1032,6 +1180,54 @@ def toggle_parameters_popover(n, is_open):
     if n:
         return not is_open
     return is_open
+
+# Callbacks for evidence selection buttons
+@app.callback(
+    Output({'type': 'evidence-checkbox', 'index': ALL}, 'value'),
+    [Input('select-all-evidence', 'n_clicks'),
+     Input('clear-evidence', 'n_clicks')],
+    [State({'type': 'evidence-checkbox', 'index': ALL}, 'id')],
+    prevent_initial_call=True
+)
+def update_evidence_selection(select_all_clicks, clear_clicks, checkbox_ids):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if button_id == 'select-all-evidence':
+        # Select all checkboxes
+        return [[checkbox_id['index']] for checkbox_id in checkbox_ids]
+    elif button_id == 'clear-evidence':
+        # Clear all checkboxes
+        return [[] for _ in checkbox_ids]
+    
+    raise PreventUpdate
+
+# Callbacks for target selection buttons
+@app.callback(
+    Output({'type': 'target-checkbox', 'index': ALL}, 'value'),
+    [Input('select-all-targets', 'n_clicks'),
+     Input('clear-targets', 'n_clicks')],
+    [State({'type': 'target-checkbox', 'index': ALL}, 'id')],
+    prevent_initial_call=True
+)
+def update_target_selection(select_all_clicks, clear_clicks, checkbox_ids):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if button_id == 'select-all-targets':
+        # Select all checkboxes
+        return [[checkbox_id['index']] for checkbox_id in checkbox_ids]
+    elif button_id == 'clear-targets':
+        # Clear all checkboxes
+        return [[] for _ in checkbox_ids]
+    
+    raise PreventUpdate
 
 # Add notification callback
 @app.callback(
