@@ -7,6 +7,8 @@ import json
 import logging
 import base64
 import threading
+import sys
+import os
 from dash.exceptions import PreventUpdate
 from pgmpy.readwrite import BIFReader
 from pgmpy.inference import VariableElimination
@@ -14,10 +16,35 @@ import warnings
 
 import mre  
 
+# Add parent directory to sys.path to resolve imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+# Import session management components (absolute imports)
+try:
+    from dash_session_manager import start_session_manager, get_session_manager
+    from dash_session_components import create_session_components, setup_session_callbacks, register_long_running_process
+    SESSION_MANAGEMENT_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Session management not available: {e}")
+    SESSION_MANAGEMENT_AVAILABLE = False
+    # Define dummy functions to prevent errors
+    def start_session_manager(): pass
+    def get_session_manager(): return None
+    def create_session_components(): return None, html.Div()
+    def setup_session_callbacks(app): pass
+    def register_long_running_process(session_id): pass
+
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Start the global session manager
+if SESSION_MANAGEMENT_AVAILABLE:
+    start_session_manager()
 
 # Global variables
 app = dash.Dash(
@@ -48,8 +75,18 @@ algorithm_requirements = {
     'Tabu MRE': 1
 }
 
+# Create session components
+if SESSION_MANAGEMENT_AVAILABLE:
+    session_id, session_components = create_session_components()
+else:
+    session_id = None
+    session_components = html.Div()
+
 # Add notification store and container
 app.layout = html.Div([
+    # SESSION MANAGEMENT COMPONENTS - ADD THESE TO ALL DASH APPS
+    session_components,
+    
     dcc.Store(id='notification-store'),
     html.Div(id='notification-container', style={
         'position': 'fixed',
@@ -539,7 +576,8 @@ app.layout = html.Div([
                 interval=1000,
                 n_intervals=0,
                 disabled=True
-            )
+            ),
+            dcc.Store(id='session-id-store', data=session_id)
         ])
     ),
     dbc.Popover(
@@ -865,15 +903,22 @@ def track_target_selections(target_checkbox_values):
     State('pop-size-input', 'value'),
     State('num-gen-input', 'value'),
     State('max-steps-input', 'value'),
-    State('dead-iter-input', 'value')
+    State('dead-iter-input', 'value'),
+    State('session-id-store', 'data')
 )
 def run_optimization(n_clicks,
                      stored_network,
                      evidence_values, evidence_ids,
                      target_checkbox_values,
-                     pop_size, n_gen, max_steps, dead_iter):
+                     pop_size, n_gen, max_steps, dead_iter,
+                     session_id):
     if not n_clicks:
         raise PreventUpdate
+
+    # REGISTER THIS PROCESS WITH SESSION MANAGER (CRITICAL FOR CLEANUP)
+    if SESSION_MANAGEMENT_AVAILABLE and session_id:
+        register_long_running_process(session_id)
+        logger.info(f"Registered optimization process for session {session_id}")
 
     model = get_model(stored_network)
     if model is None:
@@ -920,7 +965,7 @@ def run_optimization(n_clicks,
         return html.Div("No valid target variables (all deterministic or none selected).",
                         style={'color': 'red', 'textAlign': 'center'}), True, False
 
-    # Run the set of algorithms
+    # Run the set of algorithms (this is the long-running part)
     results = run_all_algorithms(model, evidence_dict, final_targets, pop_size, n_gen, max_steps, dead_iter)
 
     # Once finished, disable interval and show the run button again
@@ -1302,12 +1347,27 @@ def show_warning(message, header="Warning"):
     }
 
 def show_info(message, header="Information"):
-    """Show info notification"""
     return {
-        'message': message,
-        'header': header,
-        'icon': 'info'
+        'children': [
+            dbc.Alert([
+                html.I(className="fa fa-info-circle me-2"),
+                message
+            ], color="info", dismissable=True)
+        ],
+        'style': {
+            'position': 'fixed',
+            'bottom': '20px',
+            'right': '20px',
+            'zIndex': '1000',
+            'width': '300px',
+            'opacity': '1',
+            'transform': 'translateY(0%)'
+        }
     }
+
+# Setup session management callbacks
+if SESSION_MANAGEMENT_AVAILABLE:
+    setup_session_callbacks(app)
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8052)
