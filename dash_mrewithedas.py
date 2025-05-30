@@ -547,11 +547,27 @@ app.layout = html.Div([
             # (D) "Run" button + progress messages
             html.Div([
                 html.Div([
-                    html.Button(
-                        'Run Optimization',
+                    dbc.Button(
+                        [
+                            html.I(className="fas fa-play-circle me-2"),
+                            "Run Optimization"
+                        ],
                         id='run-optimization-button',
                         n_clicks=0,
-                        style={'margin': '10px'}
+                        color="info",
+                        className="btn-lg",
+                        style={
+                            'fontSize': '1.1rem',
+                            'padding': '0.75rem 2rem',
+                            'borderRadius': '8px',
+                            'boxShadow': '0 2px 4px rgba(0,0,0,0.1)',
+                            'transition': 'all 0.3s ease',
+                            'backgroundColor': '#00A2E1',
+                            'border': 'none',
+                            'margin': '1rem 0',
+                            'color': 'white',
+                            'fontWeight': '500'
+                        }
                     )
                 ], style={'textAlign': 'center'}),
                 dcc.Store(id='run-button-store')
