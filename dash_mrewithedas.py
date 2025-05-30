@@ -6,7 +6,6 @@ import time
 import json
 import logging
 import base64
-import threading
 import sys
 import os
 from dash.exceptions import PreventUpdate
@@ -54,9 +53,6 @@ app = dash.Dash(
     suppress_callback_exceptions=True
 )
 server = app.server
-
-progress_lock = threading.Lock()
-progress_messages = []
 
 # IMPORTANT: We do NOT load asia.bif by default. Instead, we store None here:
 default_model = None
@@ -562,7 +558,6 @@ app.layout = html.Div([
             ], id='run-button-container', style={'textAlign': 'center'}),
 
             html.Br(),
-            html.Div(id='progress-messages', style={'whiteSpace': 'pre-line', 'textAlign': 'center'}),
             html.Div(id='optimization-results'),
 
             # (E) Interval for progress tracking, plus hidden stores
@@ -1012,30 +1007,13 @@ def hide_run_button_callback(flag):
         return {'display': 'none'}
     return {'display': 'inline-block'}
 
-@app.callback(
-    Output('progress-messages', 'children'),
-    Input('progress-interval', 'n_intervals'),
-    State('progress-messages', 'children')
-)
-def update_progress_messages(n_intervals, existing):
-    with progress_lock:
-        if progress_messages:
-            text = "\n".join(progress_messages)
-            progress_messages.clear()
-            return text
-        else:
-            return existing
-
 def update_progress(msg):
-    with progress_lock:
-        progress_messages.append(msg)
+    # Solo mantenemos esto para logs del backend
+    logger.info(f"Progress: {msg}")
 
 def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dead_iter):
     logger.info("Starting run_all_algorithms")
     update_progress("Starting run_all_algorithms")
-
-    with progress_lock:
-        progress_messages.clear()
 
     results = []
 
