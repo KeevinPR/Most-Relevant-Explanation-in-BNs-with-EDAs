@@ -384,16 +384,6 @@ app.layout = html.Div([
                              style={'fontSize': '11px', 'color': '#6c757d'})
                 ], style={'textAlign': 'center', 'marginTop': '8px'}),
                 
-                html.Div([
-                    html.Span("Available algorithms: ", style={'fontWeight': 'bold'}),
-                    html.Span("UMDAcat_mre2, EBNA MRE, DEA MRE, ES MRE, GA MRE, NSGA2 MRE, PSO MRE, Tabu MRE, Hierarchical Beam Search"),
-                    dbc.Button(
-                        html.I(className="fa fa-question-circle"),
-                        id="help-button-algorithms",
-                        color="link",
-                        style={"display": "inline-block", "padding": "0", "marginLeft": "8px"}
-                    ),
-                ], style={'textAlign': 'center', 'fontSize': '12px', 'color': 'gray', 'marginTop': '10px'}),
             ]),
 
             # Add Target Variables Popover
@@ -544,7 +534,59 @@ app.layout = html.Div([
                 style={"position": "absolute", "zIndex": 1000, "marginLeft": "5px"}
             ),
 
-            # (D) "Run" button + progress messages
+            # (E) Algorithm Selection
+            html.Div(className="card", children=[
+                html.Div([
+                    html.H3("5. Select Algorithms", style={'display': 'inline-block', 'marginRight': '10px', 'textAlign': 'center'}),
+                    dbc.Button(
+                        html.I(className="fa fa-question-circle"),
+                        id="help-button-algorithms",
+                        color="link",
+                        style={"display": "inline-block", "verticalAlign": "middle", "padding": "0", "marginLeft": "5px"}
+                    ),
+                ], style={"textAlign": "center", "position": "relative"}),
+                
+                # Buttons for bulk selection
+                html.Div([
+                    dbc.Button(
+                        "Select All",
+                        id="select-all-algorithms",
+                        color="outline-primary",
+                        size="sm",
+                        style={'marginRight': '10px'}
+                    ),
+                    dbc.Button(
+                        "Clear All",
+                        id="clear-algorithms",
+                        color="outline-secondary",
+                        size="sm"
+                    )
+                ], style={'textAlign': 'center', 'marginBottom': '15px'}),
+                
+                # Checkbox container for algorithms
+                html.Div(
+                    id='algorithm-checkbox-container',
+                    style={
+                        'maxHeight': '200px',
+                        'overflowY': 'auto',
+                        'border': '1px solid #ddd',
+                        'borderRadius': '5px',
+                        'padding': '10px',
+                        'margin': '0 auto',
+                        'width': '90%',
+                        'backgroundColor': '#f8f9fa'
+                    }
+                ),
+                
+                # Info message about algorithm selection
+                html.Div([
+                    html.I(className="fa fa-info-circle", style={'marginRight': '5px', 'color': '#6c757d'}),
+                    html.Span("Select one or more algorithms to run. All algorithms can work with 1 or more target variables.", 
+                             style={'fontSize': '11px', 'color': '#6c757d'})
+                ], style={'textAlign': 'center', 'marginTop': '8px'}),
+            ]),
+
+            # (F) "Run" button + progress messages
             html.Div([
                 html.Div([
                     dbc.Button(
@@ -576,7 +618,7 @@ app.layout = html.Div([
             html.Br(),
             html.Div(id='optimization-results'),
 
-            # (E) Interval for progress tracking, plus hidden stores
+            # (G) Interval for progress tracking, plus hidden stores
             html.Div(id='scroll-helper', style={'display': 'none'}),
             dcc.Store(id='stored-network'),
             dcc.Store(id='uploaded-bif-content'),
@@ -911,6 +953,7 @@ def track_target_selections(target_checkbox_values):
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'value'),
     State({'type': 'evidence-value-dropdown', 'index': ALL}, 'id'),
     State({'type': 'target-checkbox', 'index': ALL}, 'value'),
+    State({'type': 'algorithm-checkbox', 'index': ALL}, 'value'),
     State('pop-size-input', 'value'),
     State('num-gen-input', 'value'),
     State('max-steps-input', 'value'),
@@ -921,6 +964,7 @@ def run_optimization(n_clicks,
                      stored_network,
                      evidence_values, evidence_ids,
                      target_checkbox_values,
+                     algorithm_checkbox_values,
                      pop_size, n_gen, max_steps, dead_iter,
                      session_id):
     if not n_clicks:
@@ -951,6 +995,17 @@ def run_optimization(n_clicks,
         if checkbox_value:  # If checkbox is checked, it contains the variable name
             target_vars.extend(checkbox_value)
 
+    # Get selected algorithms from checkboxes
+    selected_algorithms = []
+    for checkbox_value in algorithm_checkbox_values:
+        if checkbox_value:  # If checkbox is checked, it contains the algorithm name
+            selected_algorithms.extend(checkbox_value)
+
+    # Check if at least one algorithm is selected
+    if not selected_algorithms:
+        return html.Div("No algorithms selected. Please select at least one algorithm to run.",
+                        style={'color': 'red', 'textAlign': 'center'}), True, False
+
     # Check for overlap between evidence and target
     overlap = set(evidence_dict.keys()) & set(target_vars or [])
     if overlap:
@@ -976,8 +1031,8 @@ def run_optimization(n_clicks,
         return html.Div("No valid target variables (all deterministic or none selected).",
                         style={'color': 'red', 'textAlign': 'center'}), True, False
 
-    # Run the set of algorithms (this is the long-running part)
-    results = run_all_algorithms(model, evidence_dict, final_targets, pop_size, n_gen, max_steps, dead_iter)
+    # Run the selected algorithms (this is the long-running part)
+    results = run_all_algorithms(model, evidence_dict, final_targets, pop_size, n_gen, max_steps, dead_iter, selected_algorithms)
 
     # Once finished, disable interval and show the run button again
     interval_disabled = True
@@ -1027,22 +1082,27 @@ def update_progress(msg):
     # Solo mantenemos esto para logs del backend
     logger.info(f"Progress: {msg}")
 
-def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dead_iter):
+def run_all_algorithms(model, evidence, targets, pop_size, n_gen, max_steps, dead_iter, selected_algorithms):
     logger.info("Starting run_all_algorithms")
     update_progress("Starting run_all_algorithms")
 
     results = []
 
-    # Build a list of algorithms that have enough target variables
+    # Build a list of algorithms that have enough target variables AND are selected by user
     algorithms = []
     for a, min_t in algorithm_requirements.items():
-        if len(targets) >= min_t:
+        if len(targets) >= min_t and a in selected_algorithms:
             algorithms.append(a)
-        else:
+        elif len(targets) < min_t:
             update_progress(f"Skipping {a}; requires >= {min_t} targets.")
+        # Note: we don't log anything for unselected algorithms to avoid clutter
 
     if not targets:
         update_progress("No targets found to optimize.")
+        return results
+
+    if not algorithms:
+        update_progress("No valid algorithms selected for the given targets.")
         return results
 
     for alg in algorithms:
@@ -1268,6 +1328,30 @@ def update_target_selection(select_all_clicks, clear_clicks, checkbox_ids):
     
     raise PreventUpdate
 
+# Callbacks for algorithm selection buttons
+@app.callback(
+    Output({'type': 'algorithm-checkbox', 'index': ALL}, 'value'),
+    [Input('select-all-algorithms', 'n_clicks'),
+     Input('clear-algorithms', 'n_clicks')],
+    [State({'type': 'algorithm-checkbox', 'index': ALL}, 'id')],
+    prevent_initial_call=True
+)
+def update_algorithm_selection(select_all_clicks, clear_clicks, checkbox_ids):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if button_id == 'select-all-algorithms':
+        # Select all checkboxes
+        return [[checkbox_id['index']] for checkbox_id in checkbox_ids]
+    elif button_id == 'clear-algorithms':
+        # Clear all checkboxes
+        return [[] for _ in checkbox_ids]
+    
+    raise PreventUpdate
+
 # Add notification callback
 @app.callback(
     [Output('notification-container', 'children'),
@@ -1358,6 +1442,41 @@ def show_info(message, header="Information"):
             'transform': 'translateY(0%)'
         }
     }
+
+# Populate algorithm checkboxes - all available by default
+@app.callback(
+    Output('algorithm-checkbox-container', 'children'),
+    Input('stored-network', 'data')  # We can trigger this when network loads
+)
+def update_algorithm_checkboxes(stored_network):
+    """Create checkboxes for all available algorithms"""
+    available_algorithms = [
+        'UMDAcat_mre2',
+        'EBNA MRE', 
+        'DEA MRE',
+        'ES MRE',
+        'GA MRE',
+        'NSGA2 MRE',
+        'PSO MRE',
+        'Tabu MRE',
+        'Hierarchical Beam Search'
+    ]
+    
+    # Create checkboxes in a grid layout - all selected by default
+    checkboxes = []
+    for algorithm in available_algorithms:
+        checkboxes.append(
+            html.Div([
+                dcc.Checklist(
+                    id={'type': 'algorithm-checkbox', 'index': algorithm},
+                    options=[{'label': f' {algorithm}', 'value': algorithm}],
+                    value=[algorithm],  # Selected by default
+                    style={'margin': '0'}
+                )
+            ], style={'display': 'inline-block', 'width': '50%', 'marginBottom': '5px'})
+        )
+    
+    return html.Div(checkboxes, style={'columnCount': '2', 'columnGap': '20px'})
 
 # Setup session management callbacks
 if SESSION_MANAGEMENT_AVAILABLE:
