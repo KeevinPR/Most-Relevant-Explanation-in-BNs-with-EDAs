@@ -1617,7 +1617,7 @@ def update_algorithm_checkboxes(stored_network, target_checkbox_values, evidence
                 'width': '100%',
                 'padding': '2px 5px',
                 'borderRadius': '3px',
-                'backgroundColor': '#ffffff' if i % 2 == 0 else '#f8f9fa'
+                'backgroundColor': '#f8f9fa'
             })
         ], style={
             'width': '48%', 
