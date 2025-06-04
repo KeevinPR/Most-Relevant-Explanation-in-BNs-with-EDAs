@@ -1113,6 +1113,10 @@ def run_optimization(n_clicks,
     if 'Time' in df.columns:
         df = df.rename(columns={'Time': 'Time (s)'})
 
+    # Sort by Time (s) column in ascending order (fastest first)
+    if 'Time (s)' in df.columns and not df.empty:
+        df = df.sort_values('Time (s)', ascending=True).reset_index(drop=True)
+
     # Serialize dicts and format numbers
     df['Solution'] = df['Solution'].apply(lambda v: json.dumps(v) if isinstance(v, dict) else str(v))
     df['GBF']      = df['GBF'].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else str(x))
@@ -1128,13 +1132,13 @@ def run_optimization(n_clicks,
         className="mt-2"
     )
 
-    # 3) Wrap it in your existing "card-big" class
+    # 3) Wrap it in your existing "card-big" class with centered title
     card = dbc.Card(
             dbc.CardBody([
-                html.H4("Algorithm Results", className="card-title"),
+                html.H4("Algorithm Results", className="card-title", style={'textAlign': 'center'}),
                 table
             ])
-        ) 
+        )
     return card, interval_disabled, hide_run_button
 
 @app.callback(
