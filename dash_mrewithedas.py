@@ -71,6 +71,70 @@ algorithm_requirements = {
     'Tabu MRE': 1
 }
 
+# Add this function after the algorithm_requirements dictionary and before the session components creation
+
+def estimate_algorithm_time(algorithm, num_targets, num_evidence, num_nodes, pop_size, n_gen, max_steps, dead_iter):
+    """
+    Estimate the execution time for an algorithm based on various parameters.
+    Returns estimated time in seconds.
+    """
+    # Base time multipliers for each algorithm (in seconds for baseline conditions)
+    base_times = {
+        'UMDAcat_mre2': 2.5,
+        'EBNA MRE': 4.0,
+        'DEA MRE': 3.0,
+        'ES MRE': 2.8,
+        'GA MRE': 3.2,
+        'NSGA2 MRE': 4.5,
+        'PSO MRE': 2.0,
+        'Tabu MRE': 1.8,
+        'Hierarchical Beam Search': 1.5
+    }
+    
+    if algorithm not in base_times:
+        return 0.0
+    
+    base_time = base_times[algorithm]
+    
+    # Scaling factors
+    target_factor = 1.0 + (num_targets - 1) * 0.3  # Each additional target adds 30% time
+    evidence_factor = 1.0 + num_evidence * 0.1      # Each evidence variable adds 10% time
+    network_factor = 1.0 + (num_nodes - 8) * 0.05   # Each additional node adds 5% time (baseline: 8 nodes like Asia)
+    
+    # Parameter-based factors
+    if algorithm in ['UMDAcat_mre2', 'EBNA MRE']:
+        # EDA algorithms depend on population size and dead iterations
+        param_factor = (pop_size / 50) * (dead_iter / 10)
+    elif algorithm in ['GA MRE', 'ES MRE', 'DEA MRE', 'PSO MRE']:
+        # Evolutionary algorithms depend on population size and max steps
+        param_factor = (pop_size / 50) * (max_steps / 100)
+    elif algorithm == 'NSGA2 MRE':
+        # NSGA2 depends on population size and generations
+        param_factor = (pop_size / 50) * (n_gen / 50)
+    elif algorithm == 'Tabu MRE':
+        # Tabu search depends mainly on max steps
+        param_factor = (max_steps / 100)
+    else:  # Hierarchical Beam Search
+        param_factor = 1.0
+    
+    # Calculate final estimated time
+    estimated_time = base_time * target_factor * evidence_factor * network_factor * param_factor
+    
+    return max(0.1, estimated_time)  # Minimum 0.1 seconds
+
+def format_time_estimate(seconds):
+    """Format time estimate for display"""
+    if seconds < 1:
+        return f"~{seconds:.1f}s"
+    elif seconds < 60:
+        return f"~{seconds:.0f}s"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"~{minutes:.1f}m"
+    else:
+        hours = seconds / 3600
+        return f"~{hours:.1f}h"
+
 # Create session components
 if SESSION_MANAGEMENT_AVAILABLE:
     session_id, session_components = create_session_components()
@@ -581,9 +645,12 @@ app.layout = html.Div([
                 # Info message about algorithm selection
                 html.Div([
                     html.I(className="fa fa-info-circle", style={'marginRight': '5px', 'color': '#6c757d'}),
-                    html.Span("Select one or more algorithms to run. All algorithms can work with 1 or more target variables.", 
+                    html.Span("Select one or more algorithms to run. Time estimates update automatically based on your selections and parameters.", 
                              style={'fontSize': '11px', 'color': '#6c757d'})
                 ], style={'textAlign': 'center', 'marginTop': '8px'}),
+                
+                # Total time estimate display
+                html.Div(id='total-time-estimate', style={'textAlign': 'center', 'marginTop': '10px'}),
             ]),
 
             # (F) "Run" button + progress messages
@@ -624,6 +691,7 @@ app.layout = html.Div([
             dcc.Store(id='uploaded-bif-content'),
             dcc.Store(id='previous-evidence-selection', data=[]),
             dcc.Store(id='previous-target-selection', data=[]),
+            dcc.Store(id='algorithm-selection-store', data=[]),  # Store for algorithm selections
             dcc.Interval(
                 id='progress-interval',
                 interval=1000,
@@ -1443,13 +1511,34 @@ def show_info(message, header="Information"):
         }
     }
 
+# Callback to track algorithm selections for persistence
+@app.callback(
+    Output('algorithm-selection-store', 'data'),
+    Input({'type': 'algorithm-checkbox', 'index': ALL}, 'value')
+)
+def track_algorithm_selections(algorithm_checkbox_values):
+    """Track which algorithms are currently selected"""
+    selected_algorithms = []
+    for checkbox_value in algorithm_checkbox_values or []:
+        if checkbox_value:
+            selected_algorithms.extend(checkbox_value)
+    return selected_algorithms
+
 # Populate algorithm checkboxes - all available by default
 @app.callback(
     Output('algorithm-checkbox-container', 'children'),
-    Input('stored-network', 'data')  # We can trigger this when network loads
+    [Input('stored-network', 'data'),
+     Input({'type': 'target-checkbox', 'index': ALL}, 'value'),
+     Input({'type': 'evidence-checkbox', 'index': ALL}, 'value'),
+     Input('pop-size-input', 'value'),
+     Input('num-gen-input', 'value'),
+     Input('max-steps-input', 'value'),
+     Input('dead-iter-input', 'value')],
+    State('algorithm-selection-store', 'data')
 )
-def update_algorithm_checkboxes(stored_network):
-    """Create checkboxes for all available algorithms"""
+def update_algorithm_checkboxes(stored_network, target_checkbox_values, evidence_checkbox_values, 
+                               pop_size, n_gen, max_steps, dead_iter, current_selections):
+    """Create checkboxes for all available algorithms with time estimates"""
     available_algorithms = [
         'UMDAcat_mre2',
         'EBNA MRE', 
@@ -1462,21 +1551,156 @@ def update_algorithm_checkboxes(stored_network):
         'Hierarchical Beam Search'
     ]
     
-    # Create checkboxes in a grid layout - all selected by default
+    # Get network information
+    model = get_model(stored_network)
+    num_nodes = len(model.nodes()) if model else 8  # Default to 8 if no model
+    
+    # Count selected targets
+    num_targets = 0
+    for checkbox_value in (target_checkbox_values or []):
+        if checkbox_value:
+            num_targets += len(checkbox_value)
+    num_targets = max(1, num_targets)  # At least 1 target for estimation
+    
+    # Count selected evidence
+    num_evidence = 0
+    for checkbox_value in (evidence_checkbox_values or []):
+        if checkbox_value:
+            num_evidence += len(checkbox_value)
+    
+    # Default values if None
+    pop_size = pop_size or 50
+    n_gen = n_gen or 50
+    max_steps = max_steps or 100
+    dead_iter = dead_iter or 10
+    
+    # Use current selections if available, otherwise default to all selected
+    if current_selections is None:
+        current_selections = available_algorithms  # All selected by default
+    
+    # Create checkboxes in a 2-column layout with time estimates
     checkboxes = []
-    for algorithm in available_algorithms:
-        checkboxes.append(
+    for i, algorithm in enumerate(available_algorithms):
+        # Calculate time estimate
+        time_estimate = estimate_algorithm_time(
+            algorithm, num_targets, num_evidence, num_nodes, 
+            pop_size, n_gen, max_steps, dead_iter
+        )
+        formatted_time = format_time_estimate(time_estimate)
+        
+        # Determine if this algorithm should be selected
+        is_selected = algorithm in current_selections
+        
+        # Create checkbox with time estimate
+        checkbox_div = html.Div([
             html.Div([
                 dcc.Checklist(
                     id={'type': 'algorithm-checkbox', 'index': algorithm},
                     options=[{'label': f' {algorithm}', 'value': algorithm}],
-                    value=[algorithm],  # Selected by default
-                    style={'margin': '0'}
+                    value=[algorithm] if is_selected else [],
+                    style={'margin': '0', 'display': 'inline-block'}
+                ),
+                html.Span(
+                    formatted_time,
+                    style={
+                        'marginLeft': '10px',
+                        'fontSize': '11px',
+                        'color': '#6c757d',
+                        'fontStyle': 'italic',
+                        'float': 'right'
+                    }
                 )
-            ], style={'display': 'inline-block', 'width': '50%', 'marginBottom': '5px'})
-        )
+            ], style={
+                'display': 'flex',
+                'justifyContent': 'space-between',
+                'alignItems': 'center',
+                'width': '100%',
+                'padding': '2px 5px',
+                'borderRadius': '3px',
+                'backgroundColor': '#ffffff' if i % 2 == 0 else '#f8f9fa'
+            })
+        ], style={
+            'width': '48%', 
+            'marginBottom': '5px', 
+            'marginRight': '2%' if i % 2 == 0 else '0',
+            'display': 'inline-block',
+            'verticalAlign': 'top'
+        })
+        
+        checkboxes.append(checkbox_div)
     
-    return html.Div(checkboxes, style={'columnCount': '2', 'columnGap': '20px'})
+    return html.Div(checkboxes, style={'width': '100%'})
+
+# Callback to show total estimated time
+@app.callback(
+    Output('total-time-estimate', 'children'),
+    [Input({'type': 'algorithm-checkbox', 'index': ALL}, 'value'),
+     Input('stored-network', 'data'),
+     Input({'type': 'target-checkbox', 'index': ALL}, 'value'),
+     Input({'type': 'evidence-checkbox', 'index': ALL}, 'value'),
+     Input('pop-size-input', 'value'),
+     Input('num-gen-input', 'value'),
+     Input('max-steps-input', 'value'),
+     Input('dead-iter-input', 'value')]
+)
+def update_total_time_estimate(algorithm_checkbox_values, stored_network, target_checkbox_values, 
+                              evidence_checkbox_values, pop_size, n_gen, max_steps, dead_iter):
+    """Calculate and display total estimated time for selected algorithms"""
+    
+    # Get selected algorithms
+    selected_algorithms = []
+    for checkbox_value in algorithm_checkbox_values or []:
+        if checkbox_value:
+            selected_algorithms.extend(checkbox_value)
+    
+    if not selected_algorithms:
+        return html.Div()
+    
+    # Get network information
+    model = get_model(stored_network)
+    num_nodes = len(model.nodes()) if model else 8
+    
+    # Count selected targets and evidence
+    num_targets = 0
+    for checkbox_value in (target_checkbox_values or []):
+        if checkbox_value:
+            num_targets += len(checkbox_value)
+    num_targets = max(1, num_targets)
+    
+    num_evidence = 0
+    for checkbox_value in (evidence_checkbox_values or []):
+        if checkbox_value:
+            num_evidence += len(checkbox_value)
+    
+    # Default values if None
+    pop_size = pop_size or 50
+    n_gen = n_gen or 50
+    max_steps = max_steps or 100
+    dead_iter = dead_iter or 10
+    
+    # Calculate total time
+    total_time = 0
+    for algorithm in selected_algorithms:
+        time_estimate = estimate_algorithm_time(
+            algorithm, num_targets, num_evidence, num_nodes, 
+            pop_size, n_gen, max_steps, dead_iter
+        )
+        total_time += time_estimate
+    
+    formatted_total_time = format_time_estimate(total_time)
+    
+    return html.Div([
+        html.I(className="fa fa-clock-o", style={'marginRight': '5px', 'color': '#17a2b8'}),
+        html.Strong(f"Total estimated time: {formatted_total_time}", 
+                   style={'color': '#17a2b8', 'fontSize': '13px'})
+    ], style={
+        'backgroundColor': '#d4edda',
+        'border': '1px solid #c3e6cb',
+        'borderRadius': '5px',
+        'padding': '8px',
+        'marginTop': '10px',
+        'display': 'inline-block'
+    })
 
 # Setup session management callbacks
 if SESSION_MANAGEMENT_AVAILABLE:
