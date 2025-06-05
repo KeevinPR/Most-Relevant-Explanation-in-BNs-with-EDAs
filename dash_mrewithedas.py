@@ -170,9 +170,75 @@ def format_time_estimate(seconds):
         hours = seconds / 3600
         return f"~{hours:.1f}h"
 
-# Create session components
+# Create session components - but use dynamic session creation
 if SESSION_MANAGEMENT_AVAILABLE:
-    session_id, session_components = create_session_components()
+    # Don't create session here - will be created dynamically per user
+    session_components = html.Div([
+        # Dynamic session store - will be populated by callback
+        dcc.Store(id='session-id-store', data=None),
+        dcc.Store(id='heartbeat-counter', data=0),
+        
+        # Interval component for heartbeat (every 30 seconds)
+        dcc.Interval(
+            id='heartbeat-interval',
+            interval=30*1000,  # 30 seconds
+            n_intervals=0,
+            disabled=False
+        ),
+        
+        # Interval for cleanup check (every 2 minutes)
+        dcc.Interval(
+            id='cleanup-interval', 
+            interval=120*1000,  # 2 minutes
+            n_intervals=0,
+            disabled=False
+        ),
+        
+        # Hidden div for status
+        html.Div(id='session-status', style={'display': 'none'}),
+        
+        # Client-side script for session management
+        html.Script("""
+            // Generate unique session ID per browser
+            if (!window.dashSessionId) {
+                window.dashSessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            }
+            
+            // Send heartbeat on page activity
+            document.addEventListener('click', function() {
+                if (window.dashHeartbeat) window.dashHeartbeat();
+            });
+            
+            document.addEventListener('keypress', function() {
+                if (window.dashHeartbeat) window.dashHeartbeat();
+            });
+            
+            // Handle page unload
+            window.addEventListener('beforeunload', function() {
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/dash/_disconnect', JSON.stringify({
+                        session_id: window.dashSessionId
+                    }));
+                }
+            });
+            
+            // Handle iframe unload (when parent page changes)
+            if (window.parent !== window) {
+                try {
+                    window.parent.addEventListener('beforeunload', function() {
+                        if (navigator.sendBeacon) {
+                            navigator.sendBeacon('/dash/_disconnect', JSON.stringify({
+                                session_id: window.dashSessionId
+                            }));
+                        }
+                    });
+                } catch(e) {
+                    console.log('Cross-origin iframe detected');
+                }
+            }
+        """),
+    ], style={'display': 'none'})
+    session_id = None  # Will be set dynamically
 else:
     session_id = None
     session_components = html.Div()
@@ -732,8 +798,7 @@ app.layout = html.Div([
                 interval=1000,
                 n_intervals=0,
                 disabled=True
-            ),
-            dcc.Store(id='session-id-store', data=session_id)
+            )
         ])
     ),
     dbc.Popover(
@@ -1060,16 +1125,14 @@ def track_target_selections(target_checkbox_values):
     State('pop-size-input', 'value'),
     State('num-gen-input', 'value'),
     State('max-steps-input', 'value'),
-    State('dead-iter-input', 'value'),
-    State('session-id-store', 'data')
+    State('dead-iter-input', 'value')
 )
 def run_optimization(n_clicks,
                      stored_network,
                      evidence_values, evidence_ids,
                      target_checkbox_values,
                      algorithm_checkbox_values,
-                     pop_size, n_gen, max_steps, dead_iter,
-                     session_id):
+                     pop_size, n_gen, max_steps, dead_iter):
     if not n_clicks:
         raise PreventUpdate
 
@@ -1743,7 +1806,52 @@ def update_total_time_estimate(algorithm_checkbox_values, stored_network, target
 
 # Setup session management callbacks
 if SESSION_MANAGEMENT_AVAILABLE:
-    setup_session_callbacks(app)
+    @app.callback(
+        Output('session-id-store', 'data'),
+        Input('heartbeat-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=False
+    )
+    def initialize_session(n_intervals, stored_session_id):
+        """Initialize session ID dynamically for each user."""
+        if stored_session_id is None:
+            # Create new session for this user
+            session_manager = get_session_manager()
+            new_session_id = session_manager.register_session()
+            session_manager.register_process(new_session_id, os.getpid())
+            logger.info(f"New session created: {new_session_id}")
+            return new_session_id
+        return stored_session_id
+    
+    @app.callback(
+        Output('session-status', 'children'),
+        Input('heartbeat-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=True
+    )
+    def send_heartbeat(n_intervals, session_id):
+        """Send heartbeat to session manager."""
+        if session_id:
+            session_manager = get_session_manager()
+            session_manager.heartbeat(session_id)
+            return f"Heartbeat sent: {n_intervals}"
+        return "No session"
+    
+    @app.callback(
+        Output('heartbeat-counter', 'data'),
+        Input('cleanup-interval', 'n_intervals'),
+        State('session-id-store', 'data'),
+        prevent_initial_call=True
+    )
+    def periodic_cleanup_check(n_intervals, session_id):
+        """Periodic check to ensure session is still active."""
+        if session_id:
+            session_manager = get_session_manager()
+            active_sessions = session_manager.get_active_sessions()
+            if session_id not in active_sessions:
+                # Session expired, try to refresh or handle gracefully
+                return n_intervals
+        return n_intervals
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8052)
