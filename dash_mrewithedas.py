@@ -1211,9 +1211,12 @@ def run_optimization(n_clicks,
     if 'Time' in df.columns:
         df = df.rename(columns={'Time': 'Time (s)'})
 
-    # Sort by Time (s) column in ascending order (fastest first)
-    if 'Time (s)' in df.columns and not df.empty:
-        df = df.sort_values('Time (s)', ascending=True).reset_index(drop=True)
+    # Sort by GBF (descending - higher is better) first, then by Time (ascending - faster is better) as tiebreaker
+    if 'GBF' in df.columns and 'Time (s)' in df.columns and not df.empty:
+        # Convert GBF to numeric for proper sorting (handle any potential string values)
+        df['GBF_numeric'] = pd.to_numeric(df['GBF'], errors='coerce')
+        df = df.sort_values(['GBF_numeric', 'Time (s)'], ascending=[False, True]).reset_index(drop=True)
+        df = df.drop('GBF_numeric', axis=1)  # Remove the temporary numeric column
 
     # Serialize dicts and format numbers
     df['Solution'] = df['Solution'].apply(lambda v: json.dumps(v) if isinstance(v, dict) else str(v))
