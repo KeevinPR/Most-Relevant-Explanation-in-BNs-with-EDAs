@@ -273,15 +273,6 @@ h1 {
   box-shadow: 0 8px 32px var(--glass-shadow) !important;
 }
 
-/* === LOADING SPINNER LIQUID === */
-.dash-spinner {
-  backdrop-filter: var(--glass-blur) !important;
-  background: var(--glass-primary) !important;
-  border-radius: 20px !important;
-  border: 1px solid var(--glass-edge) !important;
-  box-shadow: 0 8px 32px var(--glass-shadow) !important;
-}
-
 /* === RESPONSIVE OPTIMIZATIONS === */
 @media (max-width: 768px) {
   .card {
