@@ -317,4 +317,64 @@ h1 {
     backdrop-filter: var(--glass-blur) var(--glass-brightness) var(--glass-saturate);
     filter: none;
   }
-} 
+}
+
+/* === BOTONES PEQUEÑOS LIQUID GLASS === */
+.btn-outline-primary.btn-sm,
+.btn-outline-secondary.btn-sm {
+  position: relative;
+  background: var(--glass-primary);
+  border: 1px solid var(--glass-edge);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-outline-primary.btn-sm::before,
+.btn-outline-secondary.btn-sm::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 10px;
+  background: var(--glass-reflection);
+  z-index: -1;
+  filter: var(--glass-blur);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn-outline-primary.btn-sm {
+  color: #007bff;
+}
+
+.btn-outline-secondary.btn-sm {
+  color: #6c757d;
+}
+
+.btn-outline-primary.btn-sm:hover,
+.btn-outline-secondary.btn-sm:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline-primary.btn-sm:hover::before {
+  opacity: 0.8;
+}
+
+.btn-outline-secondary.btn-sm:hover::before {
+  opacity: 0.8;
+}
+
+/* === BOTONES LIQUID GLASS (para botones grandes) === */ 
