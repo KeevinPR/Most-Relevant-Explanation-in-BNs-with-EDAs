@@ -48,7 +48,10 @@ if SESSION_MANAGEMENT_AVAILABLE:
 # Global variables
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        'https://bayes-interpret.com/Evidence/MREWithEDAsDash/assets/liquid-glass.css'  # Apple Liquid Glass CSS
+    ],
     requests_pathname_prefix='/Evidence/MREWithEDAsDash/',
     suppress_callback_exceptions=True
 )
