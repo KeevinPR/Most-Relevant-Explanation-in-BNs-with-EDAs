@@ -57,6 +57,103 @@ app = dash.Dash(
 )
 server = app.server
 
+# Safari Compatibility CSS Fix for Liquid Glass Effects
+SAFARI_FIX_CSS = """
+<style>
+/* === SAFARI LIQUID GLASS COMPATIBILITY FIXES === */
+/* Fixes for Safari 18 backdrop-filter + background-color bug */
+
+/* Safari detection using CSS only */
+@media not all and (min-resolution:.001dpcm) {
+    @supports (-webkit-appearance:none) {
+        
+        /* Fix for main cards - separate background and blur */
+        .card {
+            background: transparent !important;
+        }
+        
+        .card::before {
+            background: rgba(255, 255, 255, 0.12) !important;
+            -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+            backdrop-filter: blur(15px) saturate(180%) !important;
+        }
+        
+        /* Fix for buttons - use webkit prefix and avoid background conflicts */
+        .btn {
+            background: transparent !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            backdrop-filter: blur(15px) !important;
+        }
+        
+        .btn::before {
+            background: rgba(255, 255, 255, 0.12) !important;
+        }
+        
+        /* Fix for containers - separate blur and background layers */
+        #evidence-checkbox-container,
+        #target-checkbox-container,
+        #algorithm-checkbox-container {
+            background: transparent !important;
+            position: relative !important;
+        }
+        
+        #evidence-checkbox-container::before,
+        #target-checkbox-container::before,
+        #algorithm-checkbox-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-radius: inherit;
+            z-index: -1;
+            -webkit-backdrop-filter: blur(10px) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        /* Fix for form controls */
+        .form-control {
+            background: rgba(255, 255, 255, 0.15) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        /* Fix for upload card */
+        .upload-card {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+        
+        /* Fix for notification container */
+        #notification-container {
+            background: rgba(255, 255, 255, 0.15) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            backdrop-filter: blur(15px) !important;
+        }
+    }
+}
+
+/* Fallback for very old Safari versions */
+@supports not (backdrop-filter: blur(1px)) {
+    .card {
+        background: rgba(255, 255, 255, 0.85) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    .btn {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    #evidence-checkbox-container,
+    #target-checkbox-container,
+    #algorithm-checkbox-container {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+}
+</style>
+"""
+
 # IMPORTANT: We do NOT load asia.bif by default. Instead, we store None here:
 default_model = None
 
@@ -248,6 +345,11 @@ else:
 
 # Add notification store and container
 app.layout = html.Div([
+    # Safari Compatibility Fix - inject CSS
+    html.Div([
+        dcc.Markdown(SAFARI_FIX_CSS, dangerously_allow_html=True)
+    ], style={'display': 'none'}),
+    
     # SESSION MANAGEMENT COMPONENTS - ADD THESE TO ALL DASH APPS
     session_components,
     
