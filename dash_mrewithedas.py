@@ -278,18 +278,18 @@ if SESSION_MANAGEMENT_AVAILABLE:
         dcc.Store(id='session-id-store', data=None),
         dcc.Store(id='heartbeat-counter', data=0),
         
-        # Interval component for heartbeat (every 30 seconds)
+        # Interval component for heartbeat (every 10 seconds)
         dcc.Interval(
             id='heartbeat-interval',
-            interval=30*1000,  # 30 seconds
+            interval=10*1000,  # 10 seconds
             n_intervals=0,
             disabled=False
         ),
         
-        # Interval for cleanup check (every 2 minutes)
+        # Interval for cleanup check (every 30 seconds)
         dcc.Interval(
             id='cleanup-interval', 
-            interval=120*1000,  # 2 minutes
+            interval=30*1000,  # 30 seconds
             n_intervals=0,
             disabled=False
         ),
