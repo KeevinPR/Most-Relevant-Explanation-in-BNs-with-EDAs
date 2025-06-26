@@ -278,10 +278,10 @@ if SESSION_MANAGEMENT_AVAILABLE:
         dcc.Store(id='session-id-store', data=None),
         dcc.Store(id='heartbeat-counter', data=0),
         
-        # Interval component for heartbeat (every 10 seconds)
+        # Interval component for heartbeat (every 5 seconds)
         dcc.Interval(
             id='heartbeat-interval',
-            interval=10*1000,  # 10 seconds
+            interval=5*1000,  # 5 seconds
             n_intervals=0,
             disabled=False
         ),
@@ -1927,7 +1927,7 @@ if SESSION_MANAGEMENT_AVAILABLE:
             session_manager = get_session_manager()
             new_session_id = session_manager.register_session()
             session_manager.register_process(new_session_id, os.getpid())
-            logger.info(f"New session created: {new_session_id}")
+            logger.info(f"New MRE session created: {new_session_id}")
             return new_session_id
         return stored_session_id
     
@@ -1942,6 +1942,8 @@ if SESSION_MANAGEMENT_AVAILABLE:
         if session_id:
             session_manager = get_session_manager()
             session_manager.heartbeat(session_id)
+            if n_intervals % 12 == 0:  # Log every minute (every 12 intervals of 5s)
+                logger.info(f"MRE heartbeat sent for session: {session_id}")
             return f"Heartbeat sent: {n_intervals}"
         return "No session"
     
@@ -1958,6 +1960,7 @@ if SESSION_MANAGEMENT_AVAILABLE:
             active_sessions = session_manager.get_active_sessions()
             if session_id not in active_sessions:
                 # Session expired, try to refresh or handle gracefully
+                logger.warning(f"MRE session {session_id} expired")
                 return n_intervals
         return n_intervals
 
